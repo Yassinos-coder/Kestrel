@@ -11,6 +11,7 @@ export interface ReviewDigest {
   stats: DayStats;
   featureComparison: FeatureComparison[];
   rejections: RejectionStats;
+  costs: { tradingFeesSol: number; aiCostUsd: number; aiCalls: number };
   rules: { version: number; params: RuleParams; playbooks: Playbook[] };
   trades: Array<{
     id: string;
@@ -19,6 +20,7 @@ export interface ReviewDigest {
     result: { pnlPct: number; peakMultiple: number; heldMinutes: number; exitReason: string; style: string };
     setup: Record<string, number>;
     matchedPlaybooks: string[];
+    exitEvidence: unknown;
     similarPastLessons: Array<{ symbol: string; outcomePct: number; lesson: string }>;
   }>;
 }
@@ -31,7 +33,7 @@ export class ReviewAgentService {
     return this.claude.isAvailable();
   }
 
-  review(digest: ReviewDigest): Promise<ReviewOutput | null> {
+  review(digest: ReviewDigest, userId: string): Promise<ReviewOutput | null> {
     const payload = {
       ...digest,
       allowedParameterRanges: RULE_PARAM_BOUNDS,
@@ -39,6 +41,7 @@ export class ReviewAgentService {
     };
     return this.claude.structured({
       label: 'nightly-review',
+      userId,
       model: this.claude.traderModel,
       system: REVIEW_AGENT_PROMPT,
       user: WRAP_TOKEN_DATA(JSON.stringify(payload)),

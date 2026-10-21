@@ -6,6 +6,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
 import { PositionsPage } from '@/pages/PositionsPage';
+import { SmartWalletsPage } from '@/pages/SmartWalletsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { WalletPage } from '@/pages/WalletPage';
 
@@ -20,6 +21,7 @@ export function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/positions" element={<PositionsPage />} />
             <Route path="/brain" element={<BrainPage />} />
+            <Route path="/smart-wallets" element={<SmartWalletsPage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>

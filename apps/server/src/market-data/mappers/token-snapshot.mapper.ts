@@ -79,6 +79,8 @@ export class TokenSnapshotMapper {
       top1Pct: top[0]?.pct ?? 0,
       totalHolders: rug.totalHolders,
       topHolderOwners: top.map((holder) => holder.owner),
+      excludedOwners: [...rug.ammAccounts],
+      supplyRaw: rug.supply,
     };
   }
 

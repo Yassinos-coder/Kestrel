@@ -10,9 +10,10 @@ const MAX_TAGS = 4;
 export class LearningAgentService {
   constructor(private readonly claude: ClaudeService) {}
 
-  async postMortem(input: PostMortemInput): Promise<PostMortem> {
+  async postMortem(input: PostMortemInput, userId: string): Promise<PostMortem> {
     const ai = await this.claude.structured({
       label: `postmortem:${input.symbol}`,
+      userId,
       model: this.claude.lightModel,
       system: LEARNING_AGENT_PROMPT,
       user: WRAP_TOKEN_DATA(JSON.stringify(input)),

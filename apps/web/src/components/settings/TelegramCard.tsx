@@ -10,14 +10,17 @@ interface TelegramCardProps {
   connecting: boolean;
   testing: boolean;
   testSent: boolean;
+  weeklyPending: boolean;
+  weeklySent: boolean;
   disconnecting: boolean;
   error: unknown;
   onConnect: () => void;
   onTest: () => void;
+  onWeekly: () => void;
   onDisconnect: () => void;
 }
 
-export function TelegramCard({ status, waiting, connecting, testing, testSent, disconnecting, error, onConnect, onTest, onDisconnect }: TelegramCardProps) {
+export function TelegramCard({ status, waiting, connecting, testing, testSent, weeklyPending, weeklySent, disconnecting, error, onConnect, onTest, onWeekly, onDisconnect }: TelegramCardProps) {
   if (!status.configured) {
     return (
       <Card>
@@ -54,10 +57,13 @@ export function TelegramCard({ status, waiting, connecting, testing, testSent, d
           <Button variant="secondary" disabled={testing} onClick={onTest}>
             {testing ? 'Sending…' : 'Send test message'}
           </Button>
+          <Button variant="secondary" disabled={weeklyPending} onClick={onWeekly}>
+            {weeklyPending ? 'Building…' : 'Preview weekly report'}
+          </Button>
           <Button variant="ghost" disabled={disconnecting} onClick={onDisconnect}>
             Disconnect
           </Button>
-          {testSent && <span className="text-sm text-success">Sent. Check your Telegram.</span>}
+          {(testSent || weeklySent) && <span className="text-sm text-success">Sent. Check your Telegram.</span>}
         </div>
       )}
 

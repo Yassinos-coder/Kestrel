@@ -15,6 +15,9 @@ const SCALES: Record<PlaybookFeature, { scale: number; log?: boolean }> = {
   liquidityToMarketCapPct: { scale: 40 },
   priceChange1hPct: { scale: 300 },
   volumeTrendRatio: { scale: 4 },
+  freshWalletPct: { scale: 100 },
+  sameFunderPct: { scale: 60 },
+  earlyBuyerHoldPct: { scale: 60 },
 };
 
 export class FeatureSimilarity {

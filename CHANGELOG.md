@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-22
+
+### Added
+- Smart wallets page: wallets found from recent winners are scored on win rate, profit, consistency and bot-likeness, with filters, sorting and a copy flow where you set the budget, per-trade cap, loss limit and safety options
+- Copy trading engine that mirrors buys and sells within your limits, runs every token through the safety checks and pauses itself at your loss limit
+- Suggest a token: paste a contract address from the sidebar and the bot runs the full checklist and AI review, opening a position only if it likes the setup
+- Profitability card on the dashboard: trading profit after fees and slippage, minus AI running cost, with a clear profitable or not verdict
+- On-chain forensics: holders, early buyers, fresh wallets and shared funders read directly from the chain, with exit evidence recorded for learning
+- Established trending tokens are now considered alongside new launches
+- Paginated, filterable and sortable positions and decisions tables with market cap and DexScreener links
+- Weekly Telegram report, Telegram connect button with test message, and trading pause during the nightly review
+- Cost awareness: the AI sees swap fees, priority fees, slippage and price impact for each position size, and code rejects trades whose costs would eat the edge
+- AI usage is tracked per call and fed into the nightly review together with trading fees
+
+### Changed
+- Neutral dark and light palette replaces the previous green theme
+- Mobile layout now includes theme and disconnect controls and a full-width suggest button
+- Paper fills use the shared cost model with realistic priority fees instead of a fixed fee
+- Live orders use the shared slippage tolerances and a lower priority fee cap
+
+### Removed
+- Social media agent, replaced by a market-only momentum rule
+
 ## [0.2.0] - 2026-10-21
 
 ### Added

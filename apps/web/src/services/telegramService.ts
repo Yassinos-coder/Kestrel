@@ -14,6 +14,10 @@ class TelegramService extends BaseApiClient {
     return this.request('/telegram/test', { method: 'POST' });
   }
 
+  sendWeeklyReport(): Promise<{ sent: true }> {
+    return this.request('/reports/weekly', { method: 'POST' });
+  }
+
   disconnect(): Promise<{ disconnected: true }> {
     return this.request('/telegram/disconnect', { method: 'POST' });
   }

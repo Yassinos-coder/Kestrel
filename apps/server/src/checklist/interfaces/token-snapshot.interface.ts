@@ -1,3 +1,5 @@
+import type { HolderForensics } from '../../forensics/interfaces/holder-forensics.interface';
+
 export interface TokenAuthorities {
   mintRevoked: boolean;
   freezeRevoked: boolean;
@@ -21,6 +23,8 @@ export interface HolderSnapshot {
   top1Pct: number;
   totalHolders: number;
   topHolderOwners: string[];
+  excludedOwners: string[];
+  supplyRaw: number;
 }
 
 export interface ClusterSnapshot {
@@ -78,6 +82,7 @@ export interface TokenMarketSnapshot {
   sellability: SellabilitySnapshot;
   activity: ActivitySnapshot;
   momentum: MomentumSnapshot;
+  forensics?: HolderForensics;
 }
 
 export interface TokenSnapshot extends TokenMarketSnapshot {

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { HttpFetcher } from '../../shared/utils/http-fetcher.util';
 import { GECKO_BASE_URL, WSOL_MINT } from '../constants/market-data.constant';
-import type { PoolCandidate, PoolTrade } from '../interfaces/market-data.interface';
+import type { PoolCandidate, PoolTrade, TrendingWinner } from '../interfaces/market-data.interface';
 
 interface GeckoTransactionBucket {
   buys?: number;
@@ -16,6 +16,8 @@ interface GeckoPoolResource {
     name: string;
     pool_created_at: string | null;
     transactions?: { m5?: GeckoTransactionBucket };
+    price_change_percentage?: { h24?: string };
+    volume_usd?: { h24?: string };
   };
   relationships: {
     base_token: { data: { id: string } };
@@ -52,9 +54,24 @@ export class GeckoTerminalClient {
     return this.toCandidates(response);
   }
 
-  async getTrendingPools(): Promise<PoolCandidate[]> {
-    const response = await HttpFetcher.json<GeckoPoolList>(`${GECKO_BASE_URL}/trending_pools?duration=1h`);
+  async getTrendingPools(duration: '1h' | '24h' = '1h'): Promise<PoolCandidate[]> {
+    const response = await HttpFetcher.json<GeckoPoolList>(`${GECKO_BASE_URL}/trending_pools?duration=${duration}`);
     return this.toCandidates(response);
+  }
+
+  async getTrendingWinners(): Promise<TrendingWinner[]> {
+    const response = await HttpFetcher.json<GeckoPoolList>(`${GECKO_BASE_URL}/trending_pools?duration=24h`);
+    return (response.data ?? []).flatMap((pool) => {
+      const candidate = this.toCandidate(pool);
+      if (!candidate) return [];
+      return [
+        {
+          ...candidate,
+          change24hPct: Number(pool.attributes.price_change_percentage?.h24 ?? 0),
+          volume24hUsd: Number(pool.attributes.volume_usd?.h24 ?? 0),
+        },
+      ];
+    });
   }
 
   async getTrades(pairAddress: string): Promise<PoolTrade[]> {

@@ -52,8 +52,10 @@ model User {
   trades     Trade[]
   lessons    TradeLesson[]
   sweeps     ProfitSweep[]
+  aiUsage    AiUsage[]
   ruleSets   RuleSetVersion[]
   reviews    ReviewRun[]
+  follows    CopyFollow[]
 
   @@map("users")
 }
@@ -178,6 +180,8 @@ model Decision {
   reasoning  String?
   report     Json
   agents     Json?
+  marketCapUsd Float?  @map("market_cap_usd")
+  pairAddress  String? @map("pair_address")
   createdAt  DateTime       @default(now()) @map("created_at")
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -186,6 +190,7 @@ model Decision {
 
   @@index([userId, createdAt])
   @@index([userId, mint])
+  @@index([userId, marketCapUsd])
   @@map("decisions")
 }
 
@@ -198,6 +203,8 @@ model Position {
   symbol      String
   pairAddress String         @map("pair_address")
   status      PositionStatus @default(OPEN)
+  source      String         @default("AI")
+  followId    String?        @map("follow_id") @db.Uuid
 
   entrySol       Float @map("entry_sol")
   entryPriceSol  Float @map("entry_price_sol")
@@ -220,6 +227,7 @@ model Position {
 
   @@index([userId, status])
   @@index([status])
+  @@index([followId])
   @@map("positions")
 }
 
@@ -275,4 +283,60 @@ model ProfitSweep {
 
   @@index([userId, createdAt])
   @@map("profit_sweeps")
+}
+
+model SmartWallet {
+  id           String    @id @default(uuid()) @db.Uuid
+  address      String    @unique
+  score        Float
+  tier         String
+  stats        Json
+  status       String    @default("active")
+  lastActiveAt DateTime? @map("last_active_at")
+  firstSeenAt  DateTime  @default(now()) @map("first_seen_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  follows CopyFollow[]
+
+  @@index([status, score])
+  @@map("smart_wallets")
+}
+
+model CopyFollow {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  walletId        String   @map("wallet_id") @db.Uuid
+  budgetSol       Float    @map("budget_sol")
+  maxPerTradeSol  Float    @map("max_per_trade_sol")
+  maxLossSol      Float    @map("max_loss_sol")
+  minLiquidityUsd Float    @default(8000) @map("min_liquidity_usd")
+  mirrorSells     Boolean  @default(true) @map("mirror_sells")
+  requireSecuredLp Boolean @default(true) @map("require_secured_lp")
+  status          String   @default("active")
+  lastSignature   String?  @map("last_signature")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet SmartWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, walletId])
+  @@index([status])
+  @@map("copy_follows")
+}
+
+model AiUsage {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid
+  label        String
+  model        String
+  inputTokens  Int      @map("input_tokens")
+  outputTokens Int      @map("output_tokens")
+  costUsd      Float    @map("cost_usd")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("ai_usage")
 }

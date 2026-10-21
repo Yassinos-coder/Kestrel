@@ -17,6 +17,13 @@ export class FormatUtils {
     return `${sign}${value.toFixed(digits)}%`;
   }
 
+  static usdCompact(value: number | null): string {
+    if (value === null || value === 0) return '—';
+    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+    if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
+    return `$${value.toFixed(0)}`;
+  }
+
   static shortAddress(address: string): string {
     if (address.length <= 11) return address;
     return `${address.slice(0, 4)}…${address.slice(-4)}`;

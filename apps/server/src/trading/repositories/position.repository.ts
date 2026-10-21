@@ -15,6 +15,8 @@ export interface NewPosition {
   tokens: number;
   plan: object;
   context: PositionContext;
+  source: 'AI' | 'COPY';
+  followId: string | null;
 }
 
 export interface PositionUpdate {
@@ -28,6 +30,8 @@ export interface PositionUpdate {
   context?: PositionContext;
 }
 
+const MAX_LISTED_POSITIONS = 5000;
+
 @Injectable()
 export class PositionRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -38,6 +42,8 @@ export class PositionRepository {
         userId: data.userId,
         decisionId: data.decisionId,
         mode: data.mode,
+        source: data.source,
+        followId: data.followId,
         mint: data.mint,
         symbol: data.symbol,
         pairAddress: data.pairAddress,
@@ -71,6 +77,22 @@ export class PositionRepository {
       orderBy: { openedAt: 'desc' },
       take,
     });
+  }
+
+  listAllByUser(userId: string): Promise<Position[]> {
+    return this.prisma.position.findMany({ where: { userId }, orderBy: { openedAt: 'desc' }, take: MAX_LISTED_POSITIONS });
+  }
+
+  listByFollow(followId: string): Promise<Position[]> {
+    return this.prisma.position.findMany({ where: { followId } });
+  }
+
+  findOpenCopy(followId: string, mint: string): Promise<Position | null> {
+    return this.prisma.position.findFirst({ where: { followId, mint, status: 'OPEN' } });
+  }
+
+  async hasOpenForMintAnySource(userId: string, mint: string): Promise<boolean> {
+    return (await this.prisma.position.count({ where: { userId, mint, status: 'OPEN' } })) > 0;
   }
 
   listClosedSince(userId: string, since: Date): Promise<Position[]> {

@@ -8,7 +8,7 @@ export const DEFAULT_RULE_PARAMS: RuleParams = {
   maxSniperSupplyPct: 20,
   minTokenAgeSeconds: 300,
   minMarketCapUsd: 50_000,
-  maxMarketCapUsd: 2_000_000,
+  maxMarketCapUsd: 5_000_000,
   maxPriceChange5mPct: 150,
   minUniqueTraders5m: 30,
   minBuySellRatio5m: 0.8,

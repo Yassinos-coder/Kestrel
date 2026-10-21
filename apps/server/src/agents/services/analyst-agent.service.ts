@@ -9,7 +9,7 @@ import { ClaudeService } from './claude.service';
 export class AnalystAgentService {
   constructor(private readonly claude: ClaudeService) {}
 
-  async report(snapshot: TokenMarketSnapshot, checklist: ChecklistReport): Promise<AnalystReport | null> {
+  async report(snapshot: TokenMarketSnapshot, checklist: ChecklistReport, userId: string): Promise<AnalystReport | null> {
     const data = {
       symbol: snapshot.symbol,
       ageMinutes: Math.round(snapshot.ageSeconds / 60),
@@ -21,10 +21,18 @@ export class AnalystAgentService {
       activity: snapshot.activity,
       priceChange5mPct: snapshot.priceChange5mPct,
       momentum: snapshot.momentum,
+      forensics: snapshot.forensics && {
+        freshWalletPct: Math.round(snapshot.forensics.freshWalletPct),
+        sameFunderPct: Math.round(snapshot.forensics.sameFunderPct),
+        earlyBuyersStillHoldingPct: Math.round(snapshot.forensics.earlyBuyerHoldPct),
+        earlyBuyersAlreadySoldPct: Math.round(snapshot.forensics.earlyBuyersSoldPct),
+        sellToBuyVolume15m: Number(snapshot.forensics.sellBuyVolumeRatio.toFixed(2)),
+      },
       checklist: checklist.results.map((result) => ({ rule: result.rule, status: result.status, reason: result.reason })),
     };
     return this.claude.structured({
       label: `analyst:${snapshot.symbol}`,
+      userId,
       model: this.claude.lightModel,
       system: ANALYST_AGENT_PROMPT,
       user: WRAP_TOKEN_DATA(JSON.stringify(data)),

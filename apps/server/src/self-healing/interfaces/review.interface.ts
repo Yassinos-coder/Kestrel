@@ -1,4 +1,4 @@
-import type { PlaybookFeature, TradeFeatures } from '@kestrel/shared';
+import type { ExitEvidence, PlaybookFeature, TradeFeatures } from '@kestrel/shared';
 
 export interface TradeSummary {
   id: string;
@@ -12,6 +12,7 @@ export interface TradeSummary {
   style: string;
   features: TradeFeatures;
   matchedPlaybooks: string[];
+  exitEvidence: ExitEvidence | null;
 }
 
 export interface ScoredTrade {

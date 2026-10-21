@@ -1,17 +1,16 @@
-import { Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards, NotFoundException } from '@nestjs/common';
-import type { DashboardSummary, DecisionView, PositionDetail, PositionView } from '@kestrel/shared';
+import { Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import type { DashboardSummary, DecisionView, Paginated, PositionDetail, PositionView } from '@kestrel/shared';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
+import { DecisionQueryDto, PositionQueryDto } from '../dto/table-query.dto';
+import type { PositionContext } from '../interfaces/trading.interface';
 import { TradingMapper } from '../mappers/trading.mapper';
-import { DecisionRepository } from '../repositories/decision.repository';
 import { PositionRepository } from '../repositories/position.repository';
 import { TradeRepository } from '../repositories/trade.repository';
 import { GuardianService } from '../services/guardian.service';
 import { PortfolioService } from '../services/portfolio.service';
-
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 200;
+import { TableQueryService } from '../services/table-query.service';
 
 @Controller('portfolio')
 @UseGuards(JwtAuthGuard)
@@ -20,7 +19,7 @@ export class PortfolioController {
     private readonly portfolio: PortfolioService,
     private readonly positions: PositionRepository,
     private readonly trades: TradeRepository,
-    private readonly decisions: DecisionRepository,
+    private readonly tables: TableQueryService,
     private readonly guardian: GuardianService,
   ) {}
 
@@ -30,14 +29,8 @@ export class PortfolioController {
   }
 
   @Get('positions')
-  async listPositions(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query('status') status?: string,
-    @Query('limit') limit?: string,
-  ): Promise<PositionView[]> {
-    const filter = status === 'OPEN' || status === 'CLOSED' ? status : undefined;
-    const rows = await this.positions.listByUser(user.userId, filter, this.clamp(limit));
-    return rows.map(TradingMapper.toPositionView);
+  listPositions(@CurrentUser() user: AuthenticatedUser, @Query() query: PositionQueryDto): Promise<Paginated<PositionView>> {
+    return this.tables.listPositions(user.userId, query);
   }
 
   @Get('positions/:id')
@@ -45,18 +38,13 @@ export class PortfolioController {
     const position = await this.positions.findById(id);
     if (!position || position.userId !== user.userId) throw new NotFoundException('Position not found');
     const trades = await this.trades.listByPosition(id);
-    return { ...TradingMapper.toPositionView(position), trades: trades.map(TradingMapper.toTradeView) };
+    const context = position.context as unknown as PositionContext;
+    return { ...TradingMapper.toPositionView(position), trades: trades.map(TradingMapper.toTradeView), exitEvidence: context.exitEvidence ?? null };
   }
 
   @Get('decisions')
-  async listDecisions(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query('action') action?: string,
-    @Query('limit') limit?: string,
-  ): Promise<DecisionView[]> {
-    const filter = action === 'BUY' || action === 'SKIP' || action === 'REJECTED' ? action : undefined;
-    const rows = await this.decisions.listRecent(user.userId, this.clamp(limit), filter);
-    return rows.map(TradingMapper.toDecisionView);
+  listDecisions(@CurrentUser() user: AuthenticatedUser, @Query() query: DecisionQueryDto): Promise<Paginated<DecisionView>> {
+    return this.tables.listDecisions(user.userId, query);
   }
 
   @Post('positions/:id/close')
@@ -65,9 +53,4 @@ export class PortfolioController {
     return { closed: true };
   }
 
-  private clamp(limit: string | undefined): number {
-    const parsed = Number(limit);
-    if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_LIMIT;
-    return Math.min(parsed, MAX_LIMIT);
-  }
 }

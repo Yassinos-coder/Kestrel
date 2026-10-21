@@ -12,6 +12,8 @@ export interface BuyAlert {
   plan: PositionPlan;
   reasoning: string;
   ruleVersion: number;
+  roundTripCostPct: number | null;
+  breakEvenMovePct: number | null;
 }
 
 export interface SellAlert {

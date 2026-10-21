@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { HttpFetcher } from '../../shared/utils/http-fetcher.util';
 import { JUPITER_BASE_URL } from '../constants/market-data.constant';
+import { PRIORITY_FEE_MAX_LAMPORTS } from '../../trading/constants/cost.constant';
 import type { SwapQuote } from '../interfaces/market-data.interface';
 
 interface JupiterQuoteResponse {
@@ -47,7 +48,7 @@ export class JupiterClient {
         userPublicKey,
         wrapAndUnwrapSol: true,
         dynamicComputeUnitLimit: true,
-        prioritizationFeeLamports: { priorityLevelWithMaxLamports: { maxLamports: 2_000_000, priorityLevel: 'high' } },
+        prioritizationFeeLamports: { priorityLevelWithMaxLamports: { maxLamports: PRIORITY_FEE_MAX_LAMPORTS, priorityLevel: 'high' } },
       },
       retries: 0,
     });

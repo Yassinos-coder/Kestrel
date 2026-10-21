@@ -1,19 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { DashboardSummary, TradingMode } from '@kestrel/shared';
+import type { DashboardSummary, ProfitabilityView, TradingMode } from '@kestrel/shared';
+import { AiUsageRepository } from '../../agents/repositories/ai-usage.repository';
 import type { Position } from '../../generated/prisma/client';
+import { SolPriceService } from '../../market-data/services/sol-price.service';
 import { SettingsRepository } from '../../settings/repositories/settings.repository';
 import { DayWindow } from '../../shared/utils/day-window.util';
 import { WalletService } from '../../wallet/services/wallet.service';
-import { TradingMapper } from '../mappers/trading.mapper';
-import { DecisionRepository } from '../repositories/decision.repository';
 import { PositionRepository } from '../repositories/position.repository';
+import { TradeRepository } from '../repositories/trade.repository';
 import { TokenScanRepository } from '../repositories/token-scan.repository';
 import { EngineStatusService } from './engine-status.service';
+import { TradingGateService } from './trading-gate.service';
 
 const PERCENT = 100;
 const MIN_EQUITY = 0.0001;
-const RECENT_DECISIONS = 25;
 
 export interface PortfolioState {
   mode: TradingMode;
@@ -34,11 +35,14 @@ export class PortfolioService {
   constructor(
     private readonly settings: SettingsRepository,
     private readonly positions: PositionRepository,
-    private readonly decisions: DecisionRepository,
     private readonly scans: TokenScanRepository,
     private readonly wallet: WalletService,
     private readonly engine: EngineStatusService,
+    private readonly gate: TradingGateService,
     private readonly configService: ConfigService,
+    private readonly aiUsage: AiUsageRepository,
+    private readonly trades: TradeRepository,
+    private readonly solPrice: SolPriceService,
   ) {}
 
   async getState(userId: string): Promise<PortfolioState> {
@@ -80,12 +84,12 @@ export class PortfolioService {
   }
 
   async getDashboard(userId: string): Promise<DashboardSummary> {
-    const [state, settings, decisions, scannedToday] = await Promise.all([
+    const [state, settings, scannedToday] = await Promise.all([
       this.getState(userId),
       this.settings.findByUserId(userId),
-      this.decisions.listRecent(userId, RECENT_DECISIONS),
       this.scans.countSince(this.dayStart()),
     ]);
+    const profitability = await this.getProfitability(userId, state);
 
     return {
       mode: state.mode,
@@ -98,14 +102,38 @@ export class PortfolioService {
       todayPnlSol: state.dailyPnlSol,
       winRatePct: state.winRatePct,
       closedTrades: state.closedTrades,
-      openPositions: state.openPositions.map(TradingMapper.toPositionView),
-      recentDecisions: decisions.map(TradingMapper.toDecisionView),
+      openPositionCount: state.openPositions.length,
+      profitability,
       engine: {
         scoutLastRunAt: this.engine.scoutLastRunAt?.toISOString() ?? null,
         guardianLastRunAt: this.engine.guardianLastRunAt?.toISOString() ?? null,
+        entriesPausedReason: this.gate.getPauseReason(),
         watchlistSize: this.engine.watchlistSize,
         scannedToday,
       },
+    };
+  }
+
+  private async getProfitability(userId: string, state: PortfolioState): Promise<ProfitabilityView> {
+    const [ai, aiToday, tradingFeesSol, solUsd] = await Promise.all([
+      this.aiUsage.totals(userId),
+      this.aiUsage.totals(userId, this.dayStart()),
+      this.trades.sumFees(userId),
+      this.solPrice.getUsd(),
+    ]);
+    const aiCostSol = solUsd > 0 ? ai.costUsd / solUsd : 0;
+    const aiTodaySol = solUsd > 0 ? aiToday.costUsd / solUsd : 0;
+    const netProfitSol = state.realizedPnlSol - aiCostSol;
+
+    return {
+      tradingPnlSol: state.realizedPnlSol,
+      tradingFeesSol,
+      aiCostSol,
+      aiCostUsd: ai.costUsd,
+      aiCalls: ai.calls,
+      netProfitSol,
+      todayNetProfitSol: state.dailyPnlSol - aiTodaySol,
+      profitable: netProfitSol > 0,
     };
   }
 

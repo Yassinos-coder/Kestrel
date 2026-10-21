@@ -10,7 +10,11 @@ export class LiquidityValidator {
       return RuleResultFactory.hard('liquidity', false, `liquidity $${Math.round(usd)} is below the minimum`);
     }
     if (lpBurnedOrLockedPct < STATIC_LIMITS.minLpBurnedOrLockedPct) {
-      return RuleResultFactory.hard('liquidity', false, `only ${lpBurnedOrLockedPct}% of LP is burned or locked`);
+      const reason =
+        lpBurnedOrLockedPct < 1
+          ? 'no liquidity is burned or locked, the wallet holding the LP tokens can withdraw it'
+          : `only ${lpBurnedOrLockedPct.toFixed(1)}% of liquidity is burned or locked`;
+      return RuleResultFactory.hard('liquidity', false, reason);
     }
     if (exitPriceImpactPct > STATIC_LIMITS.maxExitPriceImpactPct) {
       return RuleResultFactory.hard('liquidity', false, `exit price impact ${exitPriceImpactPct.toFixed(1)}% is too high`);

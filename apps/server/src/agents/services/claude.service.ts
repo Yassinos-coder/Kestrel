@@ -4,6 +4,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import type { z } from 'zod';
 import type { StructuredRequest } from '../interfaces/claude.interface';
+import { AiUsageRepository } from '../repositories/ai-usage.repository';
+import { AiCostUtil } from '../utils/ai-cost.util';
 
 const REQUEST_TIMEOUT_MS = 90_000;
 const MAX_RETRIES = 2;
@@ -16,7 +18,10 @@ export class ClaudeService {
   readonly traderModel: string;
   readonly lightModel: string;
 
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private readonly usage: AiUsageRepository,
+  ) {
     const apiKey = configService.get<string>('anthropic.apiKey');
     this.client = apiKey ? new Anthropic({ apiKey, timeout: REQUEST_TIMEOUT_MS, maxRetries: MAX_RETRIES }) : null;
     this.traderModel = configService.getOrThrow<string>('anthropic.traderModel');
@@ -39,6 +44,7 @@ export class ClaudeService {
         messages: [{ role: 'user', content: request.user }],
         output_config: { effort: request.effort, format: zodOutputFormat(request.schema) },
       });
+      await this.recordUsage(request, response.usage.input_tokens, response.usage.output_tokens);
       if (response.stop_reason === 'refusal') {
         this.logger.warn(`${request.label} was declined by the model`);
         return null;
@@ -51,6 +57,21 @@ export class ClaudeService {
     } catch (error) {
       this.logger.warn(`${request.label} failed: ${error instanceof Error ? error.message : 'unknown error'}`);
       return null;
+    }
+  }
+
+  private async recordUsage<T extends z.ZodType>(request: StructuredRequest<T>, inputTokens: number, outputTokens: number): Promise<void> {
+    try {
+      await this.usage.record({
+        userId: request.userId ?? null,
+        label: request.label,
+        model: request.model,
+        inputTokens,
+        outputTokens,
+        costUsd: AiCostUtil.costUsd(request.model, inputTokens, outputTokens),
+      });
+    } catch (error) {
+      this.logger.warn(`Could not record AI usage: ${error instanceof Error ? error.message : 'unknown error'}`);
     }
   }
 }

@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { SettingsRepository } from '../../settings/repositories/settings.repository';
 import type { BuyAlert, DailyLossAlert, LowFundsAlert, ReviewAlert, SellAlert } from '../interfaces/alerts.interface';
 import { NotificationMessageMapper } from '../mappers/notification-message.mapper';
+import type { WeeklyAlert } from '../interfaces/weekly-alert.interface';
+import { WeeklyMessageMapper } from '../mappers/weekly-message.mapper';
 import { TelegramService } from './telegram.service';
 
 const THROTTLE_MS = 6 * 60 * 60 * 1000;
@@ -42,6 +44,10 @@ export class NotificationService {
   async notifyWarning(userId: string, key: string, html: string): Promise<void> {
     if (this.isThrottled(`warning:${userId}:${key}`)) return;
     await this.send(userId, html);
+  }
+
+  sendWeekly(userId: string, alert: WeeklyAlert): Promise<boolean> {
+    return this.send(userId, WeeklyMessageMapper.build(alert));
   }
 
   sendTest(userId: string): Promise<boolean> {

@@ -23,7 +23,11 @@ export function BotControlCard({ enabled, mode, engine, pending, onToggle }: Bot
             <h2 className="text-lg font-semibold">{enabled ? 'Bot is running' : 'Bot is off'}</h2>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {enabled ? 'Scanning new tokens around the clock and guarding open positions.' : 'Switch it on to start scanning and trading.'}
+            {engine.entriesPausedReason
+              ? `${engine.entriesPausedReason}. New entries are paused; open positions stay protected.`
+              : enabled
+                ? 'Scanning new and trending tokens around the clock and guarding open positions.'
+                : 'Switch it on to start scanning and trading.'}
           </p>
         </div>
         <Switch checked={enabled} onChange={onToggle} disabled={pending} label="Enable the bot" />
@@ -31,6 +35,7 @@ export function BotControlCard({ enabled, mode, engine, pending, onToggle }: Bot
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <Badge tone={mode === 'LIVE' ? 'danger' : 'info'}>{mode === 'LIVE' ? 'Live money' : 'Paper mode'}</Badge>
+        {engine.entriesPausedReason && <Badge tone="warning">Paused</Badge>}
         <span>Last scan {FormatUtils.timeAgo(engine.scoutLastRunAt)}</span>
         <span>· guardian {FormatUtils.timeAgo(engine.guardianLastRunAt)}</span>
         <span>· watching {engine.watchlistSize} tokens</span>

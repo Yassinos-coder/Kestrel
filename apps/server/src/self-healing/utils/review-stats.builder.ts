@@ -16,6 +16,9 @@ const FEATURE_KEYS: PlaybookFeature[] = [
   'liquidityToMarketCapPct',
   'priceChange1hPct',
   'volumeTrendRatio',
+  'freshWalletPct',
+  'sameFunderPct',
+  'earlyBuyerHoldPct',
 ];
 const TOP_RULES = 5;
 

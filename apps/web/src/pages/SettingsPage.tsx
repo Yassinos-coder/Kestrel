@@ -3,7 +3,7 @@ import { ErrorNote } from '@/components/ui/ErrorNote';
 import { useTelegram } from '@/hooks/useTelegram';
 
 export function SettingsPage() {
-  const { status, connect, sendTest, disconnect, waiting } = useTelegram();
+  const { status, connect, sendTest, sendWeekly, disconnect, waiting } = useTelegram();
 
   return (
     <div className="space-y-6">
@@ -21,10 +21,13 @@ export function SettingsPage() {
           connecting={connect.isPending}
           testing={sendTest.isPending}
           testSent={sendTest.isSuccess}
+          weeklyPending={sendWeekly.isPending}
+          weeklySent={sendWeekly.isSuccess}
           disconnecting={disconnect.isPending}
-          error={connect.error ?? sendTest.error ?? disconnect.error}
+          error={connect.error ?? sendTest.error ?? sendWeekly.error ?? disconnect.error}
           onConnect={() => connect.mutate()}
           onTest={() => sendTest.mutate()}
+          onWeekly={() => sendWeekly.mutate()}
           onDisconnect={() => disconnect.mutate()}
         />
       )}

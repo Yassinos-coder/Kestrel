@@ -20,6 +20,9 @@ const baseFeatures: TradeFeatures = {
   liquidityToMarketCapPct: 15,
   priceChange1hPct: 40,
   volumeTrendRatio: 1,
+  freshWalletPct: 10,
+  sameFunderPct: 0,
+  earlyBuyerHoldPct: 12,
 };
 
 describe('RuleChangeValidator', () => {

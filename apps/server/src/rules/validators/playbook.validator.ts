@@ -19,6 +19,9 @@ const FEATURES: ReadonlySet<PlaybookFeature> = new Set<PlaybookFeature>([
   'liquidityToMarketCapPct',
   'priceChange1hPct',
   'volumeTrendRatio',
+  'freshWalletPct',
+  'sameFunderPct',
+  'earlyBuyerHoldPct',
 ]);
 const OPERATORS: ReadonlySet<string> = new Set(['>', '>=', '<', '<=']);
 const MAX_CONDITIONS = 3;

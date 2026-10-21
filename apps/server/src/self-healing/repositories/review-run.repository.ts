@@ -48,6 +48,10 @@ export class ReviewRunRepository {
     });
   }
 
+  listSince(userId: string, since: Date): Promise<ReviewRun[]> {
+    return this.prisma.reviewRun.findMany({ where: { userId, status: 'completed', startedAt: { gte: since } } });
+  }
+
   listRecent(userId: string): Promise<ReviewRun[]> {
     return this.prisma.reviewRun.findMany({ where: { userId }, orderBy: { startedAt: 'desc' }, take: HISTORY_LIMIT });
   }

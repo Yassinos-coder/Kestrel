@@ -10,6 +10,11 @@ export interface PoolCandidate {
   sellers5m: number;
 }
 
+export interface TrendingWinner extends PoolCandidate {
+  change24hPct: number;
+  volume24hUsd: number;
+}
+
 export interface PoolTrade {
   kind: 'buy' | 'sell';
   wallet: string;

@@ -1,4 +1,5 @@
-import type { ChecklistReport, DecisionView, LessonView, PositionPlan, PositionView, TradeView } from '@kestrel/shared';
+import type { ChecklistReport, CostEstimateView, DecisionView, LessonView, PositionPlan, PositionView, TradeView } from '@kestrel/shared';
+import type { PositionContext } from '../interfaces/trading.interface';
 import type { Decision, Position, Trade, TradeLesson } from '../../generated/prisma/client';
 
 const PERCENT = 100;
@@ -22,6 +23,8 @@ export class TradingMapper {
       pnlSol,
       pnlPct: position.entrySol > 0 ? (pnlSol / position.entrySol) * PERCENT : 0,
       plan: position.plan as unknown as PositionPlan,
+      marketCapUsd: (position.context as unknown as PositionContext).features?.marketCapUsd ?? 0,
+      pairAddress: position.pairAddress,
       exitReason: position.exitReason,
       openedAt: position.openedAt.toISOString(),
       closedAt: position.closedAt?.toISOString() ?? null,
@@ -53,6 +56,9 @@ export class TradingMapper {
       reasoning: decision.reasoning,
       report: decision.report as unknown as ChecklistReport,
       plan: decision.plan as unknown as PositionPlan | null,
+      costs: ((decision.agents as { costs?: CostEstimateView } | null)?.costs ?? null),
+      marketCapUsd: decision.marketCapUsd,
+      pairAddress: decision.pairAddress,
       createdAt: decision.createdAt.toISOString(),
     };
   }

@@ -11,7 +11,10 @@ An AI trading desk for Solana meme coins that studies its own trades every night
 3. **Trader agent (Claude)** decides buy or skip on tokens that pass, sizes within the risk limit, and plans the exit: a quick scalp, a swing, or a runner. Without an Anthropic key the bot falls back to rules-only entries.
 4. **Guardian** protects every open position with code only, no LLM: exits on dev sells, a run of consecutive sells, several top holders selling, collapsing liquidity, the stop loss, the hold limit, a trailing stop, and a take-profit ladder.
 5. **Self-healing**: every night (23:00 by default) a review picks the trades worth learning from, separates signal from noise, and may retune the rules. It can add playbooks such as "one holder owns more than 12%: scalp it with a short hold and half size". Every change is validated against bounds and written as a new rule version you can inspect on the Brain page. A Telegram message reports what it found and changed.
-6. **Telegram alerts** for every buy, sell, low funds, daily loss limit and nightly review.
+6. **Telegram alerts** for every buy, sell, low funds, daily loss limit, nightly review and a weekly report every Sunday.
+7. **Cost awareness**: the trader sees swap fees, priority fees, slippage and price impact for each position size, and code rejects trades whose round-trip cost would eat the edge. The dashboard shows whether trading profit covers fees and the AI's own running cost.
+8. **Smart wallets and copy trading**: wallets that consistently profit are discovered and scored. You pick one, set a budget, per-trade cap and loss limit, and the bot mirrors it through the same safety checks.
+9. **Suggest a token**: paste a contract address and the bot evaluates it like any other candidate, buying only if it likes it.
 
 ## Guardrails the AI cannot cross
 
@@ -98,6 +101,10 @@ bun run typecheck   # type-check every package
 | `ENGINE_ENABLED` | no | `false` turns off the scout, guardian and nightly job |
 | `SCOUT_INTERVAL_SECONDS`, `GUARDIAN_INTERVAL_SECONDS` | no | Defaults 30 and 20 |
 | `SELF_HEALING_CRON` | no | Default `0 23 * * *` |
+| `WEEKLY_REPORT_CRON` | no | Default `59 23 * * 0`, the Sunday midnight Telegram report |
+| `FORENSICS_ENABLED` | no | Default `true`. Reads holders and swap history from the chain through Helius |
+| `WALLET_DISCOVERY_ENABLED`, `WALLET_DISCOVERY_MINUTES` | no | Smart wallet discovery, defaults `true` and 30 |
+| `COPY_INTERVAL_SECONDS` | no | How often copy trading polls followed wallets. Default 20 |
 | `TIMEZONE` | no | IANA zone that defines "today" and when the review runs. Default `UTC` |
 
 ### Web (`apps/web/.env`)

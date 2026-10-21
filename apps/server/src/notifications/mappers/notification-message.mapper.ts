@@ -2,6 +2,7 @@ import type { RuleChange } from '@kestrel/shared';
 import type { BuyAlert, DailyLossAlert, LowFundsAlert, ReviewAlert, SellAlert } from '../interfaces/alerts.interface';
 
 const DEXSCREENER_URL = 'https://dexscreener.com/solana';
+const PAUSE_NOTE = '⏸️ <i>New entries were paused during the review and have resumed. Open positions stayed protected.</i>';
 
 export class NotificationMessageMapper {
   static buy(alert: BuyAlert): string {
@@ -11,10 +12,13 @@ export class NotificationMessageMapper {
       `Entry: ${alert.priceSol.toExponential(3)} SOL`,
       `Confidence: ${alert.confidence ?? 'rules-only'}`,
       `Plan: ${alert.plan.style}, hold ≤ ${alert.plan.maxHoldMinutes}m, first target ${alert.plan.takeProfitMultiple}x, stop -${alert.plan.stopLossPct}%`,
+      alert.roundTripCostPct === null || alert.breakEvenMovePct === null
+        ? ''
+        : `Costs: ~${alert.roundTripCostPct.toFixed(1)}% round trip, needs +${alert.breakEvenMovePct.toFixed(1)}% to break even`,
       `Why: ${NotificationMessageMapper.escape(alert.reasoning)}`,
       `Rules v${alert.ruleVersion} · <a href="${DEXSCREENER_URL}/${alert.pairAddress}">chart</a>`,
     ];
-    return lines.join('\n');
+    return lines.filter(Boolean).join('\n');
   }
 
   static sell(alert: SellAlert): string {
@@ -49,7 +53,7 @@ export class NotificationMessageMapper {
 
   static review(alert: ReviewAlert): string {
     if (alert.failedReason) {
-      return [`🧠 <b>Nightly review failed</b>`, NotificationMessageMapper.escape(alert.failedReason), 'Rules were left unchanged.'].join('\n');
+      return [`🧠 <b>Nightly review failed</b>`, NotificationMessageMapper.escape(alert.failedReason), 'Rules were left unchanged.', PAUSE_NOTE].join('\n');
     }
 
     const header = `🧠 <b>Nightly review</b> · ${NotificationMessageMapper.escape(alert.windowLabel)}`;
@@ -57,13 +61,13 @@ export class NotificationMessageMapper {
     const summary = NotificationMessageMapper.escape(alert.summary);
 
     if (!alert.applied.length) {
-      return [header, scope, summary, 'Nothing needed changing.'].join('\n');
+      return [header, scope, summary, 'Nothing needed changing.', PAUSE_NOTE].join('\n');
     }
 
     const changes = alert.applied.map((change) => `• ${NotificationMessageMapper.describe(change)}`);
     const version = alert.versionAfter ? `Rules v${alert.versionBefore} → v${alert.versionAfter}` : `Rules v${alert.versionBefore}`;
     const rejected = alert.rejectedCount ? [`(${alert.rejectedCount} proposed change(s) blocked by guardrails)`] : [];
-    return [header, scope, summary, '', '<b>Changed:</b>', ...changes, ...rejected, version].join('\n');
+    return [header, scope, summary, '', '<b>Changed:</b>', ...changes, ...rejected, version, PAUSE_NOTE].join('\n');
   }
 
   private static describe(change: RuleChange): string {

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { HttpFetcher } from '../../shared/utils/http-fetcher.util';
-import { DEXSCREENER_BASE_URL, DEXSCREENER_BATCH_SIZE, WSOL_MINT } from '../constants/market-data.constant';
+import { DEXSCREENER_BASE_URL, DEXSCREENER_BATCH_SIZE, DEXSCREENER_TOKENS_URL, WSOL_MINT } from '../constants/market-data.constant';
 import type { DexPair } from '../interfaces/market-data.interface';
 
 interface DexPairResource {
@@ -30,6 +30,19 @@ export class DexScreenerClient {
     const batches = this.chunk(pairAddresses, DEXSCREENER_BATCH_SIZE);
     const results = await Promise.all(batches.map((batch) => this.fetchBatch(batch)));
     return results.flat();
+  }
+
+  async getPairsForTokens(mints: string[]): Promise<DexPair[]> {
+    const batches = this.chunk(mints, DEXSCREENER_BATCH_SIZE);
+    const responses = await Promise.all(
+      batches.map((batch) => HttpFetcher.json<DexPairResource[]>(`${DEXSCREENER_TOKENS_URL}/${batch.join(',')}`)),
+    );
+    return this.toPairs({ pairs: responses.flat() });
+  }
+
+  async getBestPairForToken(mint: string): Promise<DexPair | null> {
+    const pairs = await this.getPairsForTokens([mint]);
+    return pairs.filter((pair) => pair.mint === mint).sort((a, b) => b.liquidityUsd - a.liquidityUsd)[0] ?? null;
   }
 
   private async fetchBatch(batch: string[]): Promise<DexPair[]> {

@@ -43,6 +43,9 @@ const FEATURES = [
   'liquidityToMarketCapPct',
   'priceChange1hPct',
   'volumeTrendRatio',
+  'freshWalletPct',
+  'sameFunderPct',
+  'earlyBuyerHoldPct',
 ] as const;
 
 export const ReviewOutputSchema = z.object({

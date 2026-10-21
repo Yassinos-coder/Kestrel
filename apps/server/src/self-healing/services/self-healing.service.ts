@@ -12,7 +12,10 @@ import type { PositionContext } from '../../trading/interfaces/trading.interface
 import { DecisionRepository } from '../../trading/repositories/decision.repository';
 import { PositionRepository } from '../../trading/repositories/position.repository';
 import { LessonService } from '../../trading/services/lesson.service';
+import { TradingGateService } from '../../trading/services/trading-gate.service';
 import type { TradeSummary } from '../interfaces/review.interface';
+import { AiUsageRepository } from '../../agents/repositories/ai-usage.repository';
+import { TradeRepository } from '../../trading/repositories/trade.repository';
 import { ReviewRunRepository } from '../repositories/review-run.repository';
 import type { ReviewOutput } from '../schemas/review-output.schema';
 import { ReviewStatsBuilder } from '../utils/review-stats.builder';
@@ -38,10 +41,22 @@ export class SelfHealingService {
     private readonly agent: ReviewAgentService,
     private readonly lessons: LessonService,
     private readonly notifications: NotificationService,
+    private readonly gate: TradingGateService,
     private readonly configService: ConfigService,
+    private readonly trades: TradeRepository,
+    private readonly aiUsage: AiUsageRepository,
   ) {}
 
   async runReview(userId: string): Promise<ReviewRun> {
+    await this.gate.pauseEntries('Nightly review in progress');
+    try {
+      return await this.runPausedReview(userId);
+    } finally {
+      this.gate.resumeEntries();
+    }
+  }
+
+  private async runPausedReview(userId: string): Promise<ReviewRun> {
     const timezone = this.configService.getOrThrow<string>('engine.timezone');
     const windowStart = DayWindow.startOfDay(timezone);
     const windowEnd = new Date();
@@ -91,7 +106,7 @@ export class SelfHealingService {
     const scored = TradeSignificanceScorer.select(summaries, DIGEST_SIZE);
     const rules = await this.ruleSets.getActive(userId);
     const digest = await this.buildDigest(userId, windowLabel, summaries, scored, rules, windowStart);
-    const output = await this.agent.review(digest);
+    const output = await this.agent.review(digest, userId);
 
     if (!output) {
       await this.notifications.notifyReview(userId, 
@@ -189,13 +204,17 @@ export class SelfHealingService {
           },
           setup: item.trade.features as unknown as Record<string, number>,
           matchedPlaybooks: item.trade.matchedPlaybooks,
+          exitEvidence: item.trade.exitEvidence,
           similarPastLessons: similar.map((lesson) => ({ symbol: lesson.symbol, outcomePct: lesson.outcomePct, lesson: lesson.lesson })),
         };
       }),
     );
 
+    const [tradingFeesSol, ai] = await Promise.all([this.trades.sumFees(userId, windowStart), this.aiUsage.totals(userId, windowStart)]);
+
     return {
       windowLabel,
+      costs: { tradingFeesSol, aiCostUsd: ai.costUsd, aiCalls: ai.calls },
       stats: ReviewStatsBuilder.dayStats(summaries),
       featureComparison: ReviewStatsBuilder.compareFeatures(summaries),
       rejections,
@@ -238,6 +257,7 @@ export class SelfHealingService {
       style: (position.plan as { style?: string }).style ?? 'swing',
       features: context.features,
       matchedPlaybooks: context.matchedPlaybooks,
+      exitEvidence: context.exitEvidence ?? null,
     };
   }
 

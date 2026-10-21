@@ -2,17 +2,9 @@ import type { DecisionView } from '@kestrel/shared';
 import { Check, ChevronDown, X } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/Badge';
+import { TokenLink } from '@/components/ui/TokenLink';
 import { cn } from '@/lib/cn';
 import { FormatUtils } from '@/utils/FormatUtils';
-
-type Filter = 'ALL' | 'BUY' | 'SKIP' | 'REJECTED';
-
-const FILTERS: Array<{ id: Filter; label: string }> = [
-  { id: 'ALL', label: 'All' },
-  { id: 'BUY', label: 'Bought' },
-  { id: 'SKIP', label: 'Skipped' },
-  { id: 'REJECTED', label: 'Rejected' },
-];
 
 const TONES = { BUY: 'success', SKIP: 'warning', REJECTED: 'neutral' } as const;
 const LABELS = { BUY: 'Bought', SKIP: 'Skipped', REJECTED: 'Rejected' } as const;
@@ -22,18 +14,23 @@ function DecisionRow({ decision }: { decision: DecisionView }) {
 
   return (
     <li className="border-t first:border-t-0">
-      <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-start gap-3 py-3 text-left">
-        <Badge tone={TONES[decision.action]}>{LABELS[decision.action]}</Badge>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">
-            {decision.symbol}
-            <span className="ml-2 text-xs font-normal text-muted-foreground">{FormatUtils.timeAgo(decision.createdAt)}</span>
-          </p>
-          <p className="truncate text-sm text-muted-foreground">{decision.reasoning}</p>
-        </div>
-        {decision.sizeSol !== null && <span className="text-sm font-semibold">{FormatUtils.sol(decision.sizeSol, 3)}</span>}
-        <ChevronDown className={cn('mt-1 h-4 w-4 shrink-0 text-muted-foreground transition', open && 'rotate-180')} />
-      </button>
+      <div className="flex w-full items-start gap-3 py-3">
+        <button type="button" onClick={() => setOpen(!open)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
+          <Badge tone={TONES[decision.action]}>{LABELS[decision.action]}</Badge>
+          <div className="min-w-0 flex-1">
+            <p className="flex flex-wrap items-center gap-x-2">
+              <TokenLink symbol={decision.symbol} pairAddress={decision.pairAddress} mint={decision.mint} />
+              <span className="text-xs font-normal text-muted-foreground">
+                {FormatUtils.timeAgo(decision.createdAt)}
+                {decision.marketCapUsd !== null ? ` · ${FormatUtils.usdCompact(decision.marketCapUsd)} mkt cap` : ''}
+              </span>
+            </p>
+            <p className="truncate text-sm text-muted-foreground">{decision.reasoning}</p>
+          </div>
+          {decision.sizeSol !== null && <span className="text-sm font-semibold">{FormatUtils.sol(decision.sizeSol, 3)}</span>}
+          <ChevronDown className={cn('mt-1 h-4 w-4 shrink-0 text-muted-foreground transition', open && 'rotate-180')} />
+        </button>
+      </div>
 
       {open && (
         <div className="mb-3 space-y-3 rounded-lg bg-muted/60 p-3 text-sm">
@@ -60,32 +57,14 @@ function DecisionRow({ decision }: { decision: DecisionView }) {
 }
 
 export function DecisionFeed({ decisions }: { decisions: DecisionView[] }) {
-  const [filter, setFilter] = useState<Filter>('ALL');
-  const visible = decisions.filter((decision) => filter === 'ALL' || decision.action === filter);
-
+  if (!decisions.length) {
+    return <p className="py-6 text-center text-sm text-muted-foreground">Nothing matches. The bot checks tokens continuously and lists every decision here.</p>;
+  }
   return (
-    <div>
-      <div className="mb-3 flex gap-1">
-        {FILTERS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setFilter(item.id)}
-            className={cn('rounded-full px-3 py-1 text-xs font-semibold transition', filter === item.id ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-muted')}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-      {visible.length ? (
-        <ul>
-          {visible.map((decision) => (
-            <DecisionRow key={decision.id} decision={decision} />
-          ))}
-        </ul>
-      ) : (
-        <p className="py-6 text-center text-sm text-muted-foreground">Nothing here yet. The bot checks new tokens continuously and lists every decision.</p>
-      )}
-    </div>
+    <ul>
+      {decisions.map((decision) => (
+        <DecisionRow key={decision.id} decision={decision} />
+      ))}
+    </ul>
   );
 }

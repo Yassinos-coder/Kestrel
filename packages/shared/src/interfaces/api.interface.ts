@@ -49,6 +49,14 @@ export interface PositionPlan {
   stopLossPct: number;
 }
 
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pages: number;
+}
+
 export interface PositionView {
   id: string;
   mode: TradingMode;
@@ -64,6 +72,8 @@ export interface PositionView {
   pnlSol: number;
   pnlPct: number;
   plan: PositionPlan;
+  marketCapUsd: number;
+  pairAddress: string;
   exitReason: string | null;
   openedAt: string;
   closedAt: string | null;
@@ -81,8 +91,38 @@ export interface TradeView {
   createdAt: string;
 }
 
+export interface ExitSeller {
+  wallet: string;
+  role: 'creator' | 'top-holder' | 'early-buyer' | 'other';
+  tokens: number;
+  sharePct: number;
+}
+
+export interface ExitEvidence {
+  sellStreak: number;
+  uniqueSellers: number;
+  windowMinutes: number;
+  sellVsBuyVolume: number;
+  soldByCreator: boolean;
+  topHoldersSelling: number;
+  earlyBuyersSelling: number;
+  otherSellers: number;
+  topSellers: ExitSeller[];
+}
+
 export interface PositionDetail extends PositionView {
   trades: TradeView[];
+  exitEvidence: ExitEvidence | null;
+}
+
+export interface CostEstimateView {
+  sizeSol: number;
+  roundTripCostSol: number;
+  roundTripCostPct: number;
+  breakEvenMovePct: number;
+  entryImpactPct: number;
+  swapFeePct: number;
+  fixedCostSol: number;
 }
 
 export interface DecisionView {
@@ -95,7 +135,26 @@ export interface DecisionView {
   reasoning: string | null;
   report: ChecklistReport;
   plan: PositionPlan | null;
+  costs: CostEstimateView | null;
+  marketCapUsd: number | null;
+  pairAddress: string | null;
   createdAt: string;
+}
+
+export interface SuggestionResult {
+  decision: DecisionView;
+  positionOpened: boolean;
+}
+
+export interface ProfitabilityView {
+  tradingPnlSol: number;
+  tradingFeesSol: number;
+  aiCostSol: number;
+  aiCostUsd: number;
+  aiCalls: number;
+  netProfitSol: number;
+  todayNetProfitSol: number;
+  profitable: boolean;
 }
 
 export interface DashboardSummary {
@@ -109,12 +168,13 @@ export interface DashboardSummary {
   todayPnlSol: number;
   winRatePct: number;
   closedTrades: number;
-  openPositions: PositionView[];
-  recentDecisions: DecisionView[];
+  openPositionCount: number;
+  profitability: ProfitabilityView;
   engine: EngineStatus;
 }
 
 export interface EngineStatus {
+  entriesPausedReason: string | null;
   scoutLastRunAt: string | null;
   guardianLastRunAt: string | null;
   watchlistSize: number;
@@ -162,4 +222,59 @@ export interface BrainView {
   versions: RuleSetView[];
   reviews: ReviewRunView[];
   lessons: LessonView[];
+}
+
+export type WalletTier = 'A' | 'B' | 'C';
+
+export interface WalletStatsView {
+  swapsAnalyzed: number;
+  solSidedPct: number;
+  tokensTraded: number;
+  closedTokens: number;
+  winRatePct: number;
+  totalPnlSol: number;
+  avgPnlPerTokenSol: number;
+  bestTokenSharePct: number;
+  medianHoldMinutes: number;
+  swapsPerDay: number;
+  spanDays: number;
+  avgBuySol: number;
+  earlyEntryPct: number | null;
+  lastActiveMs: number;
+}
+
+export interface SmartWalletView {
+  id: string;
+  address: string;
+  tier: WalletTier;
+  score: number;
+  stats: WalletStatsView;
+  lastActiveAt: string | null;
+  followId: string | null;
+  followStatus: string | null;
+}
+
+export interface FollowInput {
+  budgetSol: number;
+  maxPerTradeSol: number;
+  maxLossSol: number;
+  minLiquidityUsd: number;
+  mirrorSells: boolean;
+  requireSecuredLp: boolean;
+}
+
+export interface CopyFollowView extends FollowInput {
+  id: string;
+  walletId: string;
+  walletAddress: string;
+  tier: WalletTier;
+  score: number;
+  status: string;
+  deployedSol: number;
+  realizedPnlSol: number;
+  openPnlSol: number;
+  openPositions: number;
+  closedTrades: number;
+  winRatePct: number;
+  createdAt: string;
 }

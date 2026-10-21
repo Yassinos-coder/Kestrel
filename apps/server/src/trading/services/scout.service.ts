@@ -10,12 +10,15 @@ import { SettingsRepository } from '../../settings/repositories/settings.reposit
 import { TokenScanRepository } from '../repositories/token-scan.repository';
 import { DecisionPipelineService } from './decision-pipeline.service';
 import { EngineStatusService } from './engine-status.service';
+import { TradingGateService } from './trading-gate.service';
 
 const MINUTE_MS = 60_000;
 const MAX_WATCHLIST = 600;
 const MAX_TOKEN_AGE_MS = 180 * MINUTE_MS;
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAYS_MS = [10 * MINUTE_MS, 30 * MINUTE_MS, Number.POSITIVE_INFINITY];
+const ESTABLISHED_RETRY_MS = 25 * MINUTE_MS;
+const ESTABLISHED_UNSEEN_LIMIT_MS = 2 * 60 * MINUTE_MS;
 const MAX_SNAPSHOTS_PER_TICK = 4;
 const MAX_PAIRS_PER_LOOKUP = 24;
 const MIN_RECENT_TRANSACTIONS = 5;
@@ -23,8 +26,12 @@ const PREFILTER_LIQUIDITY_FACTOR = 0.5;
 const PREFILTER_MARKET_CAP_LOW_FACTOR = 0.5;
 const PREFILTER_MARKET_CAP_HIGH_FACTOR = 1.5;
 
+type WatchSource = 'new' | 'trending';
+
 interface WatchEntry {
   candidate: PoolCandidate;
+  source: WatchSource;
+  lastSeenMs: number;
   attempts: number;
   nextAttemptMs: number;
 }
@@ -45,6 +52,7 @@ export class ScoutService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly settings: SettingsRepository,
     private readonly ruleSets: RuleSetService,
     private readonly engine: EngineStatusService,
+    private readonly gate: TradingGateService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -65,7 +73,7 @@ export class ScoutService implements OnApplicationBootstrap, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
-      await this.runTick();
+      await this.gate.run(() => this.runTick());
     } catch (error) {
       this.logger.error(`Scout tick failed: ${error instanceof Error ? error.message : 'unknown error'}`);
     } finally {
@@ -89,7 +97,7 @@ export class ScoutService implements OnApplicationBootstrap, OnModuleDestroy {
     let snapshotsTaken = 0;
 
     for (const entry of due) {
-      if (snapshotsTaken >= MAX_SNAPSHOTS_PER_TICK) break;
+      if (snapshotsTaken >= MAX_SNAPSHOTS_PER_TICK || this.gate.isPaused()) break;
       this.scheduleRetry(entry);
 
       const pair = byPair.get(entry.candidate.pairAddress);
@@ -116,23 +124,37 @@ export class ScoutService implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   private async refreshWatchlist(): Promise<void> {
-    const sources = await Promise.allSettled([this.gecko.getNewPools(1), this.gecko.getNewPools(2), this.gecko.getTrendingPools()]);
-    for (const source of sources) {
-      if (source.status === 'rejected') continue;
-      for (const candidate of source.value) this.track(candidate);
-    }
+    const feeds: Array<[WatchSource, Promise<PoolCandidate[]>]> = [
+      ['new', this.gecko.getNewPools(1)],
+      ['new', this.gecko.getNewPools(2)],
+      ['trending', this.gecko.getTrendingPools('1h')],
+      ['trending', this.gecko.getTrendingPools('24h')],
+    ];
+    const results = await Promise.allSettled(feeds.map(([, request]) => request));
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') return;
+      for (const candidate of result.value) this.track(candidate, feeds[index]![0]);
+    });
     this.prune();
   }
 
-  private track(candidate: PoolCandidate): void {
-    if (this.watchlist.has(candidate.mint)) return;
-    this.watchlist.set(candidate.mint, { candidate, attempts: 0, nextAttemptMs: 0 });
+  private track(candidate: PoolCandidate, source: WatchSource): void {
+    const existing = this.watchlist.get(candidate.mint);
+    if (existing) {
+      existing.lastSeenMs = Date.now();
+      if (source === 'trending') existing.source = 'trending';
+      return;
+    }
+    this.watchlist.set(candidate.mint, { candidate, source, lastSeenMs: Date.now(), attempts: 0, nextAttemptMs: 0 });
   }
 
   private prune(): void {
     const now = Date.now();
     for (const [mint, entry] of this.watchlist) {
-      const expired = now - entry.candidate.createdAtMs > MAX_TOKEN_AGE_MS || entry.attempts >= MAX_ATTEMPTS;
+      const expired =
+        entry.source === 'trending'
+          ? now - entry.lastSeenMs > ESTABLISHED_UNSEEN_LIMIT_MS
+          : now - entry.candidate.createdAtMs > MAX_TOKEN_AGE_MS || entry.attempts >= MAX_ATTEMPTS;
       if (expired) this.watchlist.delete(mint);
     }
     if (this.watchlist.size <= MAX_WATCHLIST) return;
@@ -151,6 +173,10 @@ export class ScoutService implements OnApplicationBootstrap, OnModuleDestroy {
   }
 
   private scheduleRetry(entry: WatchEntry): void {
+    if (entry.source === 'trending') {
+      entry.nextAttemptMs = Date.now() + ESTABLISHED_RETRY_MS;
+      return;
+    }
     const delay = RETRY_DELAYS_MS[Math.min(entry.attempts, RETRY_DELAYS_MS.length - 1)] ?? Number.POSITIVE_INFINITY;
     entry.attempts++;
     entry.nextAttemptMs = Date.now() + delay;

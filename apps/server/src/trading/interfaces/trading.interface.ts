@@ -1,4 +1,4 @@
-import type { TradeFeatures } from '@kestrel/shared';
+import type { ExitEvidence, TradeFeatures } from '@kestrel/shared';
 
 export interface ExitPlan {
   tp1Multiple: number;
@@ -23,6 +23,16 @@ export interface PositionContext {
   ruleVersion: number;
   matchedPlaybooks: string[];
   reasoning: string;
+  earlyBuyerWallets?: string[];
+  exitEvidence?: ExitEvidence;
+  copy?: CopyContext;
+}
+
+export interface CopyContext {
+  followId: string;
+  wallet: string;
+  boughtTokens: number;
+  soldTokens: number;
 }
 
 export interface PoolState {

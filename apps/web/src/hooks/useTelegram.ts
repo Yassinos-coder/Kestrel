@@ -29,11 +29,12 @@ export function useTelegram() {
   });
 
   const sendTest = useMutation({ mutationFn: () => telegramService.sendTest() });
+  const sendWeekly = useMutation({ mutationFn: () => telegramService.sendWeeklyReport() });
 
   const disconnect = useMutation({
     mutationFn: () => telegramService.disconnect(),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['telegram'] }),
   });
 
-  return { status, connect, sendTest, disconnect, waiting: waitingSince !== null };
+  return { status, connect, sendTest, sendWeekly, disconnect, waiting: waitingSince !== null };
 }

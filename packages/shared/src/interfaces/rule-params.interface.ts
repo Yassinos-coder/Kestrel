@@ -42,7 +42,10 @@ export type PlaybookFeature =
   | 'holderGrowth5mPct'
   | 'liquidityToMarketCapPct'
   | 'priceChange1hPct'
-  | 'volumeTrendRatio';
+  | 'volumeTrendRatio'
+  | 'freshWalletPct'
+  | 'sameFunderPct'
+  | 'earlyBuyerHoldPct';
 
 export type TradeFeatures = Record<PlaybookFeature, number>;
 

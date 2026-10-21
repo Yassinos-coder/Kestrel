@@ -17,7 +17,7 @@ const buildSnapshot = (overrides: Partial<TokenSnapshot> = {}): TokenSnapshot =>
   authorities: { mintRevoked: true, freezeRevoked: true },
   extensions: { transferFee: false, transferHook: false, permanentDelegate: false },
   liquidity: { usd: 40_000, quoteSol: 180, lpBurnedOrLockedPct: 100, exitPriceImpactPct: 1.2 },
-  holders: { top10Pct: 22, top1Pct: 7, totalHolders: 400, topHolderOwners: [] },
+  holders: { top10Pct: 22, top1Pct: 7, totalHolders: 400, topHolderOwners: [], excludedOwners: [], supplyRaw: 0 },
   clusters: { bundledSupplyPct: 6, sniperSupplyPct: 8 },
   creator: { address: 'Creator111', hasSold: false, priorTokenCount: 2, priorRugCount: 0, flaggedRugged: false },
   sellability: { routeExists: true, simulatedSellOk: true },
@@ -45,13 +45,13 @@ describe('ChecklistService', () => {
   });
 
   it('rejects when the top 10 holders are too concentrated', () => {
-    const holders = { top10Pct: 55, top1Pct: 9, totalHolders: 100, topHolderOwners: [] };
+    const holders = { top10Pct: 55, top1Pct: 9, totalHolders: 100, topHolderOwners: [], excludedOwners: [], supplyRaw: 0 };
     const report = service.evaluate(buildSnapshot({ holders }), params);
     expect(report.hardFailures).toContain('holder-concentration');
   });
 
   it('rejects when a single holder is too large', () => {
-    const holders = { top10Pct: 28, top1Pct: 22, totalHolders: 100, topHolderOwners: [] };
+    const holders = { top10Pct: 28, top1Pct: 22, totalHolders: 100, topHolderOwners: [], excludedOwners: [], supplyRaw: 0 };
     const report = service.evaluate(buildSnapshot({ holders }), params);
     expect(report.hardFailures).toContain('holder-concentration');
   });
@@ -78,7 +78,7 @@ describe('ChecklistService', () => {
   });
 
   it('respects tuned parameters', () => {
-    const holders = { top10Pct: 38, top1Pct: 9, totalHolders: 100, topHolderOwners: [] };
+    const holders = { top10Pct: 38, top1Pct: 9, totalHolders: 100, topHolderOwners: [], excludedOwners: [], supplyRaw: 0 };
     const strict = service.evaluate(buildSnapshot({ holders }), params);
     const relaxed = service.evaluate(buildSnapshot({ holders }), { ...params, maxTop10HolderPct: 40 });
     expect(strict.hardFailures).toContain('holder-concentration');

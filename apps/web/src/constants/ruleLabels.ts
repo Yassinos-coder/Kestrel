@@ -43,4 +43,7 @@ export const FEATURE_LABELS: Record<PlaybookFeature, string> = {
   liquidityToMarketCapPct: 'liquidity / market cap %',
   priceChange1hPct: '1 hour price change %',
   volumeTrendRatio: 'volume trend',
+  freshWalletPct: 'fresh-wallet holders %',
+  sameFunderPct: 'same-funder holders %',
+  earlyBuyerHoldPct: 'early buyers still holding %',
 };

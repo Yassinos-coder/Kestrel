@@ -1,4 +1,4 @@
-import type { ChecklistReport, Playbook, TradeFeatures } from '@kestrel/shared';
+import type { ChecklistReport, CostEstimateView, ExitEvidence, Playbook, TradeFeatures } from '@kestrel/shared';
 import type { TokenMarketSnapshot } from '../../checklist/interfaces/token-snapshot.interface';
 import type { ActiveRules } from '../../rules/interfaces/active-rules.interface';
 import type { AnalystReport } from '../schemas/agent-outputs.schema';
@@ -27,6 +27,8 @@ export interface TraderInput {
   rules: ActiveRules;
   matchedPlaybooks: Playbook[];
   lessons: LessonSummary[];
+  userId: string;
+  costs: Array<{ sizeFraction: number; cost: CostEstimateView }>;
 }
 
 export interface PostMortemInput {
@@ -39,4 +41,5 @@ export interface PostMortemInput {
   heldMinutes: number;
   exitReason: string;
   pnlPct: number;
+  exitEvidence: ExitEvidence | null;
 }

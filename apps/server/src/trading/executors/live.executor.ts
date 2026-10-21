@@ -5,11 +5,10 @@ import { JupiterClient } from '../../market-data/clients/jupiter.client';
 import { SolanaRpcService } from '../../market-data/clients/solana-rpc.service';
 import { LAMPORTS_PER_SOL_NUMBER, WSOL_MINT } from '../../market-data/constants/market-data.constant';
 import { WalletService } from '../../wallet/services/wallet.service';
+import { COSTS } from '../constants/cost.constant';
 import type { BuyOrder, SellOrder, TradeExecutor } from '../interfaces/executor.interface';
 import type { Fill } from '../interfaces/trading.interface';
 
-const BUY_SLIPPAGE_BPS = 500;
-const SELL_SLIPPAGE_BPS = 1_500;
 const SETTLE_DELAY_MS = 1_500;
 
 @Injectable()
@@ -28,7 +27,7 @@ export class LiveExecutor implements TradeExecutor {
 
     const [solBefore, tokensBefore] = await Promise.all([this.rpc.getBalanceSol(owner), this.rpc.getTokenBalanceRaw(owner, order.mint)]);
     const lamports = BigInt(Math.floor(order.solAmount * LAMPORTS_PER_SOL_NUMBER));
-    const quote = await this.jupiter.quote({ inputMint: WSOL_MINT, outputMint: order.mint, amount: lamports, slippageBps: BUY_SLIPPAGE_BPS });
+    const quote = await this.jupiter.quote({ inputMint: WSOL_MINT, outputMint: order.mint, amount: lamports, slippageBps: COSTS.buySlippageToleranceBps });
     const signature = await this.sendSwap(quote, keypair);
 
     await this.settle();
@@ -50,7 +49,7 @@ export class LiveExecutor implements TradeExecutor {
     const raw = order.sellAll || wanted > tokensBefore ? tokensBefore : wanted;
     if (raw <= 0n) throw new ServiceUnavailableException('No tokens left to sell in the bot wallet');
 
-    const quote = await this.jupiter.quote({ inputMint: order.mint, outputMint: WSOL_MINT, amount: raw, slippageBps: SELL_SLIPPAGE_BPS });
+    const quote = await this.jupiter.quote({ inputMint: order.mint, outputMint: WSOL_MINT, amount: raw, slippageBps: COSTS.sellSlippageToleranceBps });
     const signature = await this.sendSwap(quote, keypair);
 
     await this.settle();

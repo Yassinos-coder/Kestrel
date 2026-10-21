@@ -4,8 +4,10 @@ import { AuthModule } from './auth/auth.module';
 import configuration from './config/configuration';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { ReportsModule } from './reports/reports.module';
 import { SelfHealingModule } from './self-healing/self-healing.module';
 import { SettingsModule } from './settings/settings.module';
+import { SmartWalletsModule } from './smart-wallets/smart-wallets.module';
 import { TradingModule } from './trading/trading.module';
 import { UsersModule } from './users/users.module';
 import { WalletModule } from './wallet/wallet.module';
@@ -21,6 +23,8 @@ import { WalletModule } from './wallet/wallet.module';
     WalletModule,
     TradingModule,
     SelfHealingModule,
+    ReportsModule,
+    SmartWalletsModule,
   ],
 })
 export class AppModule {}

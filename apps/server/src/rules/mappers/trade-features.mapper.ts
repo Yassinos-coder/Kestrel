@@ -21,6 +21,9 @@ export class TradeFeaturesMapper {
       liquidityToMarketCapPct,
       priceChange1hPct: snapshot.momentum.priceChange1hPct,
       volumeTrendRatio: snapshot.momentum.volumeTrendRatio,
+      freshWalletPct: snapshot.forensics?.freshWalletPct ?? 0,
+      sameFunderPct: snapshot.forensics?.sameFunderPct ?? 0,
+      earlyBuyerHoldPct: snapshot.forensics?.earlyBuyerHoldPct ?? 0,
     };
   }
 }

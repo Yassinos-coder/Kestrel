@@ -26,6 +26,14 @@ export class TradeRepository {
     return this.prisma.trade.findMany({ where: { positionId }, orderBy: { createdAt: 'asc' } });
   }
 
+  async sumFees(userId: string, since?: Date): Promise<number> {
+    const result = await this.prisma.trade.aggregate({
+      where: { userId, ...(since ? { createdAt: { gte: since } } : {}) },
+      _sum: { feesSol: true },
+    });
+    return result._sum.feesSol ?? 0;
+  }
+
   listByUser(userId: string, take: number): Promise<Trade[]> {
     return this.prisma.trade.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take });
   }

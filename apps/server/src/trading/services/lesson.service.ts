@@ -35,7 +35,8 @@ export class LessonService {
         heldMinutes: (closedAt.getTime() - position.openedAt.getTime()) / MINUTE_MS,
         exitReason: position.exitReason ?? 'unknown',
         pnlPct,
-      });
+        exitEvidence: context.exitEvidence ?? null,
+      }, position.userId);
       await this.lessons.create({
         userId: position.userId,
         positionId: position.id,

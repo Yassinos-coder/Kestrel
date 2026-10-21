@@ -14,5 +14,6 @@ import { SelfHealingService } from './services/self-healing.service';
   imports: [ScheduleModule.forRoot(), AgentsModule, NotificationsModule, RulesModule, TradingModule],
   controllers: [BrainController],
   providers: [ReviewRunRepository, ReviewAgentService, SelfHealingService, SelfHealingScheduler],
+  exports: [ReviewRunRepository],
 })
 export class SelfHealingModule {}

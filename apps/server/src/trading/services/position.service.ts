@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { PositionPlan, TradeFeatures, TradingMode } from '@kestrel/shared';
+import type { CostEstimateView, PositionPlan, TradeFeatures, TradingMode } from '@kestrel/shared';
 import type { TokenMarketSnapshot } from '../../checklist/interfaces/token-snapshot.interface';
 import type { Position } from '../../generated/prisma/client';
 import { SolPriceService } from '../../market-data/services/sol-price.service';
@@ -9,7 +9,7 @@ import { SettingsRepository } from '../../settings/repositories/settings.reposit
 import { LiveExecutor } from '../executors/live.executor';
 import { PaperExecutor } from '../executors/paper.executor';
 import type { TradeExecutor } from '../interfaces/executor.interface';
-import type { ExitPlan, PoolState, PositionContext } from '../interfaces/trading.interface';
+import type { CopyContext, ExitPlan, PoolState, PositionContext } from '../interfaces/trading.interface';
 import { PositionRepository } from '../repositories/position.repository';
 import { TradeRepository } from '../repositories/trade.repository';
 import { LessonService } from './lesson.service';
@@ -32,6 +32,10 @@ export interface OpenArgs {
   ruleVersion: number;
   matchedPlaybooks: string[];
   reasoning: string;
+  source?: 'AI' | 'COPY';
+  followId?: string;
+  copy?: CopyContext;
+  costs?: CostEstimateView;
 }
 
 export interface SellFlags {
@@ -85,6 +89,8 @@ export class PositionService {
       ruleVersion: args.ruleVersion,
       matchedPlaybooks: args.matchedPlaybooks,
       reasoning: args.reasoning,
+      earlyBuyerWallets: snapshot.forensics?.earlyBuyerWallets ?? [],
+      copy: args.copy,
     };
 
     const position = await this.positions.create({
@@ -99,6 +105,8 @@ export class PositionService {
       tokens: fill.tokenAmount,
       plan: args.plan,
       context,
+      source: args.source ?? 'AI',
+      followId: args.followId ?? null,
     });
     await this.trades.create({
       userId: args.userId,
@@ -251,6 +259,8 @@ export class PositionService {
       plan: args.plan,
       reasoning: args.reasoning,
       ruleVersion: args.ruleVersion,
+      roundTripCostPct: args.costs?.roundTripCostPct ?? null,
+      breakEvenMovePct: args.costs?.breakEvenMovePct ?? null,
     });
   }
 

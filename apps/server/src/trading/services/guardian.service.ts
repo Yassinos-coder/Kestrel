@@ -6,12 +6,14 @@ import { GeckoTerminalClient } from '../../market-data/clients/geckoterminal.cli
 import type { DexPair, PoolTrade } from '../../market-data/interfaces/market-data.interface';
 import type { ExitSignals, PoolState, PositionContext } from '../interfaces/trading.interface';
 import { PositionRepository } from '../repositories/position.repository';
+import { ExitEvidenceBuilder } from '../utils/exit-evidence.builder';
 import { ExitRulesEvaluator } from '../utils/exit-rules.evaluator';
 import { EngineStatusService } from './engine-status.service';
 import { PositionService } from './position.service';
 
 const TRADE_LOOKUPS_PER_TICK = 6;
 const TOP_HOLDER_WINDOW_MS = 10 * 60 * 1000;
+const RUG_EXIT_PATTERN = /creator|consecutive|top holders|liquidity/;
 
 @Injectable()
 export class GuardianService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -103,10 +105,20 @@ export class GuardianService implements OnApplicationBootstrap, OnModuleDestroy 
     );
     if (!action) return;
 
+    if (action.full && RUG_EXIT_PATTERN.test(action.reason)) {
+      await this.recordExitEvidence(position, context, trades, pair.pairAddress);
+    }
+
     await this.positionService.sell(position.id, action.sellFraction, action.reason, pool, {
       markTp1: action.markTp1,
       markTp2: action.markTp2,
     });
+  }
+
+  private async recordExitEvidence(position: Position, context: PositionContext, loaded: PoolTrade[], pairAddress: string): Promise<void> {
+    const trades = loaded.length ? loaded : await this.loadTrades(pairAddress);
+    const exitEvidence = ExitEvidenceBuilder.build(trades, context, position.openedAt.getTime(), Date.now());
+    await this.positions.update(position.id, { context: { ...context, exitEvidence } });
   }
 
   private computeSignals(context: PositionContext, trades: PoolTrade[], openedAtMs: number, liquidityUsd: number): ExitSignals {

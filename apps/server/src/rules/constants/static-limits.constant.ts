@@ -11,6 +11,8 @@ export const STATIC_LIMITS = {
   absoluteMaxPositionPct: 5,
   absoluteMaxDailyLossPct: 15,
   minTradeSol: 0.01,
+  maxRoundTripCostPct: 12,
+  minTargetToCostRatio: 3,
   maxPlaybookSizeMultiplier: 1,
   minPlaybookSizeMultiplier: 0.25,
 } as const;
