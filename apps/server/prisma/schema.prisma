@@ -1,0 +1,278 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+  runtime      = "nodejs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TradingMode {
+  PAPER
+  LIVE
+}
+
+enum RiskProfile {
+  CONSERVATIVE
+  BALANCED
+  AGGRESSIVE
+  CUSTOM
+}
+
+enum DecisionAction {
+  BUY
+  SKIP
+  REJECTED
+}
+
+enum PositionStatus {
+  OPEN
+  CLOSED
+}
+
+enum TradeSide {
+  BUY
+  SELL
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  walletAddress String    @unique @map("wallet_address")
+  displayName   String?   @map("display_name")
+  onboardedAt   DateTime? @map("onboarded_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  settings   BotSettings?
+  botWallet  BotWallet?
+  decisions  Decision[]
+  positions  Position[]
+  trades     Trade[]
+  lessons    TradeLesson[]
+  sweeps     ProfitSweep[]
+  ruleSets   RuleSetVersion[]
+  reviews    ReviewRun[]
+
+  @@map("users")
+}
+
+model AuthNonce {
+  id            String   @id @default(uuid()) @db.Uuid
+  walletAddress String   @map("wallet_address")
+  nonce         String   @unique
+  expiresAt     DateTime @map("expires_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([walletAddress])
+  @@index([expiresAt])
+  @@map("auth_nonces")
+}
+
+model BotSettings {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @map("user_id") @db.Uuid
+
+  mode    TradingMode @default(PAPER)
+  enabled Boolean     @default(false)
+
+  startingPaperBalanceSol Float @default(10) @map("starting_paper_balance_sol")
+  paperCashSol            Float @default(10) @map("paper_cash_sol")
+
+  autoSweep       Boolean @default(false) @map("auto_sweep")
+  liveBankrollSol Float   @default(1) @map("live_bankroll_sol")
+
+  telegramChatId   String? @map("telegram_chat_id")
+  telegramLinkCode String? @unique @map("telegram_link_code")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("bot_settings")
+}
+
+model RuleSetVersion {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  version   Int
+  active    Boolean  @default(false)
+  params    Json
+  playbooks Json
+  source    String
+  summary   String
+  changes   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, version])
+  @@index([userId, active])
+  @@map("rule_set_versions")
+}
+
+model ReviewRun {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  windowStart      DateTime  @map("window_start")
+  windowEnd        DateTime  @map("window_end")
+  status           String
+  tradesInWindow   Int       @map("trades_in_window")
+  tradesReviewed   Int       @map("trades_reviewed")
+  stats            Json
+  report           Json?
+  appliedChanges   Json?     @map("applied_changes")
+  rejectedChanges  Json?     @map("rejected_changes")
+  ruleVersionAfter Int?      @map("rule_version_after")
+  error            String?
+  startedAt        DateTime  @default(now()) @map("started_at")
+  finishedAt       DateTime? @map("finished_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+  @@map("review_runs")
+}
+
+model BotWallet {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @unique @map("user_id") @db.Uuid
+  publicKey       String   @unique @map("public_key")
+  encryptedSecret String   @map("encrypted_secret")
+  iv              String
+  authTag         String   @map("auth_tag")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("bot_wallets")
+}
+
+model TokenScan {
+  id          String   @id @default(uuid()) @db.Uuid
+  mint        String   @unique
+  pairAddress String   @map("pair_address")
+  symbol      String
+  name        String
+  snapshot    Json
+  scannedAt   DateTime @default(now()) @map("scanned_at")
+
+  decisions Decision[]
+
+  @@index([scannedAt])
+  @@map("token_scans")
+}
+
+model Decision {
+  id         String         @id @default(uuid()) @db.Uuid
+  userId     String         @map("user_id") @db.Uuid
+  scanId     String         @map("scan_id") @db.Uuid
+  mint       String
+  symbol     String
+  action     DecisionAction
+  confidence Int?
+  sizeSol    Float?         @map("size_sol")
+  plan       Json?
+  reasoning  String?
+  report     Json
+  agents     Json?
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scan      TokenScan  @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  positions Position[]
+
+  @@index([userId, createdAt])
+  @@index([userId, mint])
+  @@map("decisions")
+}
+
+model Position {
+  id          String         @id @default(uuid()) @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
+  decisionId  String?        @map("decision_id") @db.Uuid
+  mode        TradingMode
+  mint        String
+  symbol      String
+  pairAddress String         @map("pair_address")
+  status      PositionStatus @default(OPEN)
+
+  entrySol       Float @map("entry_sol")
+  entryPriceSol  Float @map("entry_price_sol")
+  tokensBought   Float @map("tokens_bought")
+  tokensHeld     Float @map("tokens_held")
+  realizedSol    Float @default(0) @map("realized_sol")
+  peakPriceSol   Float @map("peak_price_sol")
+  lastPriceSol   Float @map("last_price_sol")
+
+  plan      Json
+  context   Json
+  exitReason String? @map("exit_reason")
+  openedAt  DateTime @default(now()) @map("opened_at")
+  closedAt  DateTime? @map("closed_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  decision Decision? @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+  trades   Trade[]
+  lesson   TradeLesson?
+
+  @@index([userId, status])
+  @@index([status])
+  @@map("positions")
+}
+
+model Trade {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  positionId String    @map("position_id") @db.Uuid
+  side       TradeSide
+  reason     String
+  priceSol   Float     @map("price_sol")
+  solAmount  Float     @map("sol_amount")
+  tokenAmount Float    @map("token_amount")
+  feesSol    Float     @default(0) @map("fees_sol")
+  signature  String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([positionId])
+  @@map("trades")
+}
+
+model TradeLesson {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  positionId String   @unique @map("position_id") @db.Uuid
+  mint       String
+  symbol     String
+  outcomePct Float    @map("outcome_pct")
+  exitReason String   @map("exit_reason")
+  features   Json
+  lesson     String
+  tags       String[]
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  position Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("trade_lessons")
+}
+
+model ProfitSweep {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  amountSol Float    @map("amount_sol")
+  signature String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("profit_sweeps")
+}

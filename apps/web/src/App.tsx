@@ -1,14 +1,30 @@
-import { useHealthQuery } from '@/hooks/useHealthQueries';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { AppLayout } from '@/layout/AppLayout';
+import { ProtectedRoute } from '@/layout/ProtectedRoute';
+import { BrainPage } from '@/pages/BrainPage';
+import { DashboardPage } from '@/pages/DashboardPage';
+import { LoginPage } from '@/pages/LoginPage';
+import { OnboardingPage } from '@/pages/OnboardingPage';
+import { PositionsPage } from '@/pages/PositionsPage';
+import { SettingsPage } from '@/pages/SettingsPage';
+import { WalletPage } from '@/pages/WalletPage';
 
 export function App() {
-  const { data, isError, isPending } = useHealthQuery();
-
   return (
-    <main style={{ fontFamily: 'system-ui', padding: 24 }}>
-      <h1>Kestrel</h1>
-      {isPending && <p>Connecting to server…</p>}
-      {isError && <p>Server unreachable</p>}
-      {data && <p>Server {data.status}, up {data.uptimeSeconds}s</p>}
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route element={<AppLayout />}>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/positions" element={<PositionsPage />} />
+            <Route path="/brain" element={<BrainPage />} />
+            <Route path="/wallet" element={<WalletPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }

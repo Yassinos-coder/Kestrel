@@ -11,12 +11,16 @@ export interface TokenExtensions {
 
 export interface LiquiditySnapshot {
   usd: number;
+  quoteSol: number;
   lpBurnedOrLockedPct: number;
   exitPriceImpactPct: number;
 }
 
 export interface HolderSnapshot {
   top10Pct: number;
+  top1Pct: number;
+  totalHolders: number;
+  topHolderOwners: string[];
 }
 
 export interface ClusterSnapshot {
@@ -25,9 +29,11 @@ export interface ClusterSnapshot {
 }
 
 export interface CreatorSnapshot {
+  address: string | null;
   hasSold: boolean;
   priorTokenCount: number;
   priorRugCount: number;
+  flaggedRugged: boolean;
 }
 
 export interface SellabilitySnapshot {
@@ -42,11 +48,9 @@ export interface ActivitySnapshot {
   washTradeSuspected: boolean;
 }
 
-export interface SocialSignals {
-  contractAddressVerified: boolean;
-  accountAgeDays: number;
-  copycatCount: number;
-  botEngagementRatio: number;
+export interface MomentumSnapshot {
+  priceChange1hPct: number;
+  volumeTrendRatio: number;
 }
 
 export interface PortfolioSnapshot {
@@ -54,10 +58,16 @@ export interface PortfolioSnapshot {
   dailyLossPct: number;
 }
 
-export interface TokenSnapshot {
+export interface TokenMarketSnapshot {
   mint: string;
+  symbol: string;
+  name: string;
+  pairAddress: string;
+  dexId: string;
+  decimals: number;
   ageSeconds: number;
   marketCapUsd: number;
+  priceSol: number;
   priceChange5mPct: number;
   authorities: TokenAuthorities;
   extensions: TokenExtensions;
@@ -67,6 +77,9 @@ export interface TokenSnapshot {
   creator: CreatorSnapshot;
   sellability: SellabilitySnapshot;
   activity: ActivitySnapshot;
-  social: SocialSignals | null;
+  momentum: MomentumSnapshot;
+}
+
+export interface TokenSnapshot extends TokenMarketSnapshot {
   portfolio: PortfolioSnapshot;
 }

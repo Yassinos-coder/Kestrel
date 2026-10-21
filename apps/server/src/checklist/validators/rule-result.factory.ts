@@ -1,5 +1,5 @@
 import type { ChecklistRuleId, RuleResult } from '@kestrel/shared';
-import { CHECKLIST_THRESHOLDS } from '../constants/checklist-thresholds.constant';
+import { STATIC_LIMITS } from '../../rules/constants/static-limits.constant';
 
 export class RuleResultFactory {
   static hard(rule: ChecklistRuleId, passed: boolean, reason: string): RuleResult {
@@ -16,7 +16,7 @@ export class RuleResultFactory {
     return {
       rule,
       hard: false,
-      status: score >= CHECKLIST_THRESHOLDS.passingRuleScore ? 'pass' : 'warn',
+      status: score >= STATIC_LIMITS.passingRuleScore ? 'pass' : 'warn',
       score,
       reason,
     };

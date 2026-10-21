@@ -21,3 +21,6 @@ Thumbs.db
 
 .claude/worktrees/
 .railway/.railway-cache/
+
+# generated
+apps/server/src/generated/

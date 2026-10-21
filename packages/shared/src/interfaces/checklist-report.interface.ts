@@ -7,7 +7,7 @@ export type ChecklistRuleId =
   | 'creator-wallet'
   | 'sellability'
   | 'organic-activity'
-  | 'social-narrative'
+  | 'momentum-quality'
   | 'timing-and-limits';
 
 export type RuleStatus = 'pass' | 'warn' | 'fail';

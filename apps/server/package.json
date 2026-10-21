@@ -1,6 +1,6 @@
 {
   "name": "@kestrel/server",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "build": "nest build",
@@ -9,25 +9,43 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rimraf dist .turbo"
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "clean": "rimraf dist src/generated .turbo"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.0.0",
     "@kestrel/shared": "*",
     "@nestjs/common": "^12.0.0",
     "@nestjs/config": "^12.0.0",
     "@nestjs/core": "^12.0.0",
+    "@nestjs/jwt": "^12.0.3",
     "@nestjs/platform-express": "^12.0.0",
+    "@nestjs/schedule": "^12.0.2",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "@solana/web3.js": "^3.1.1",
+    "bs58": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "cron": "^4.4.0",
+    "dotenv": "^18.0.8",
     "helmet": "^8.3.0",
+    "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "tweetnacl": "^1.0.3",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.0",
     "@nestjs/schematics": "^12.0.0",
     "@types/express": "^5.0.6",
     "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "prisma": "^7.10.1",
     "rimraf": "^6.1.3",
     "typescript": "^6.0.0",
     "vitest": "5.0.4"

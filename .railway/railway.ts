@@ -1,4 +1,4 @@
-import { defineRailway, github, project, service } from "railway/iac";
+import { defineRailway, github, preserve, project, service } from "railway/iac";
 
 const REGION = "europe-west4-drams3a";
 const IN_REGION = { [REGION]: 1 };
@@ -27,17 +27,36 @@ export default defineRailway(() => {
 
   const server = service("Kestrel Server", {
     source: repo,
-    build: watching("bun run --filter @kestrel/server build", "/apps/server/**"),
+    build: watching(
+      "bun run --filter @kestrel/server db:generate && bun run --filter @kestrel/server build",
+      "/apps/server/**",
+    ),
     start: nodeStart("apps/server"),
+    preDeploy: "bun run --filter @kestrel/server db:deploy",
     healthcheck: "/api/health/live",
     healthcheckTimeout: 60,
     replicas: IN_REGION,
     deploy: limits(1, 1_000 * MB),
+    domains: [{ domain: "api.kestrel.sidedevelopments.com", port: 3000 }],
     networking: { privateNetworkEndpoint: "kestrel-server" },
     env: {
       NODE_ENV: "production",
-      RAILPACK_NODE_VERSION: NODE_VERSION,
+      PORT: "3000",
       API_PREFIX: "api",
+      RAILPACK_NODE_VERSION: NODE_VERSION,
+      DATABASE_URL: preserve(),
+      JWT_SECRET: preserve(),
+      CORS_ORIGINS: preserve(),
+      HELIUS_API_KEY: preserve(),
+      ANTHROPIC_API_KEY: preserve(),
+      ANTHROPIC_TRADER_MODEL: preserve(),
+      ANTHROPIC_LIGHT_MODEL: preserve(),
+      TELEGRAM_BOT_TOKEN: preserve(),
+      TELEGRAM_CHAT_ID: preserve(),
+      LIVE_TRADING_ENABLED: preserve(),
+      WALLET_ENCRYPTION_KEY: preserve(),
+      TIMEZONE: preserve(),
+      SELF_HEALING_CRON: preserve(),
     },
   });
 
@@ -51,6 +70,7 @@ export default defineRailway(() => {
     networking: { privateNetworkEndpoint: "kestrel-web" },
     env: {
       RAILPACK_NODE_VERSION: NODE_VERSION,
+      VITE_API_URL: preserve(),
     },
   });
 

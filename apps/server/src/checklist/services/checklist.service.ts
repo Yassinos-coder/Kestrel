@@ -1,42 +1,50 @@
 import { Injectable } from '@nestjs/common';
-import type { ChecklistReport, RuleResult } from '@kestrel/shared';
-import { CHECKLIST_THRESHOLDS } from '../constants/checklist-thresholds.constant';
+import type { ChecklistReport, RuleParams, RuleResult } from '@kestrel/shared';
 import type { TokenSnapshot } from '../interfaces/token-snapshot.interface';
 import { CreatorWalletValidator } from '../validators/creator-wallet.validator';
 import { HolderDistributionValidator } from '../validators/holder-distribution.validator';
 import { LiquidityValidator } from '../validators/liquidity.validator';
 import { MarketActivityValidator } from '../validators/market-activity.validator';
-import { SocialNarrativeValidator } from '../validators/social-narrative.validator';
+import { MomentumQualityValidator } from '../validators/momentum-quality.validator';
 import { TokenContractValidator } from '../validators/token-contract.validator';
 import { TradingLimitsValidator } from '../validators/trading-limits.validator';
 
 @Injectable()
 export class ChecklistService {
-  evaluate(snapshot: TokenSnapshot): ChecklistReport {
-    const results = this.runRules(snapshot);
-    const hardFailures = results.filter((result) => result.hard && result.status === 'fail').map((result) => result.rule);
-    const softScore = this.computeSoftScore(results);
-
-    if (hardFailures.length) return { mint: snapshot.mint, verdict: 'reject', softScore, hardFailures, results };
-    if (softScore < CHECKLIST_THRESHOLDS.minSoftScore) {
-      return { mint: snapshot.mint, verdict: 'reject', softScore, hardFailures, results };
-    }
-    return { mint: snapshot.mint, verdict: 'candidate', softScore, hardFailures, results };
+  screen(snapshot: TokenSnapshot, params: RuleParams): ChecklistReport {
+    const results = this.runHardRules(snapshot, params);
+    return this.buildReport(snapshot.mint, results, params, false);
   }
 
-  private runRules(snapshot: TokenSnapshot): RuleResult[] {
+  evaluate(snapshot: TokenSnapshot, params: RuleParams): ChecklistReport {
+    const results = [
+      ...this.runHardRules(snapshot, params),
+      MarketActivityValidator.validate(snapshot, params),
+      MomentumQualityValidator.validate(snapshot),
+    ];
+    return this.buildReport(snapshot.mint, results, params, true);
+  }
+
+  private runHardRules(snapshot: TokenSnapshot, params: RuleParams): RuleResult[] {
     return [
       TokenContractValidator.validateAuthorities(snapshot),
       TokenContractValidator.validateExtensions(snapshot),
-      LiquidityValidator.validate(snapshot),
-      HolderDistributionValidator.validateConcentration(snapshot),
-      HolderDistributionValidator.validateBundledSupply(snapshot),
+      LiquidityValidator.validate(snapshot, params),
+      HolderDistributionValidator.validateConcentration(snapshot, params),
+      HolderDistributionValidator.validateBundledSupply(snapshot, params),
       CreatorWalletValidator.validate(snapshot),
       TokenContractValidator.validateSellability(snapshot),
-      MarketActivityValidator.validate(snapshot),
-      SocialNarrativeValidator.validate(snapshot),
-      TradingLimitsValidator.validate(snapshot),
+      TradingLimitsValidator.validate(snapshot, params),
     ];
+  }
+
+  private buildReport(mint: string, results: RuleResult[], params: RuleParams, scoreSoft: boolean): ChecklistReport {
+    const hardFailures = results.filter((result) => result.hard && result.status === 'fail').map((result) => result.rule);
+    const softScore = this.computeSoftScore(results);
+
+    if (hardFailures.length) return { mint, verdict: 'reject', softScore, hardFailures, results };
+    if (scoreSoft && softScore < params.minSoftScore) return { mint, verdict: 'reject', softScore, hardFailures, results };
+    return { mint, verdict: 'candidate', softScore, hardFailures, results };
   }
 
   private computeSoftScore(results: RuleResult[]): number {

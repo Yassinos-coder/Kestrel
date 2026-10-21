@@ -1,0 +1,16 @@
+export const STATIC_LIMITS = {
+  minLpBurnedOrLockedPct: 90,
+  maxExitPriceImpactPct: 3,
+  maxCreatorPriorRugs: 0,
+  minHolderGrowth5mPct: 0,
+  minVolumeTrendRatio: 0.5,
+  maxFreefall1hPct: -30,
+  maxOverextended1hPct: 300,
+  minShortTermChange5mPct: -10,
+  passingRuleScore: 75,
+  absoluteMaxPositionPct: 5,
+  absoluteMaxDailyLossPct: 15,
+  minTradeSol: 0.01,
+  maxPlaybookSizeMultiplier: 1,
+  minPlaybookSizeMultiplier: 0.25,
+} as const;

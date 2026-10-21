@@ -1,24 +1,30 @@
-import type { RuleResult } from '@kestrel/shared';
-import { CHECKLIST_THRESHOLDS } from '../constants/checklist-thresholds.constant';
+import type { RuleParams, RuleResult } from '@kestrel/shared';
 import type { TokenSnapshot } from '../interfaces/token-snapshot.interface';
 import { RuleResultFactory } from './rule-result.factory';
 
 export class HolderDistributionValidator {
-  static validateConcentration(snapshot: TokenSnapshot): RuleResult {
-    const { top10Pct } = snapshot.holders;
-    if (top10Pct > CHECKLIST_THRESHOLDS.maxTop10HolderPct) {
-      return RuleResultFactory.hard('holder-concentration', false, `top 10 holders own ${top10Pct}%`);
+  static validateConcentration(snapshot: TokenSnapshot, params: RuleParams): RuleResult {
+    const { top10Pct, top1Pct } = snapshot.holders;
+    if (top10Pct > params.maxTop10HolderPct) {
+      return RuleResultFactory.hard('holder-concentration', false, `top 10 holders own ${top10Pct.toFixed(1)}%`);
     }
-    return RuleResultFactory.hard('holder-concentration', true, `top 10 holders own ${top10Pct}%`);
+    if (top1Pct > params.maxTop1HolderPct) {
+      return RuleResultFactory.hard('holder-concentration', false, `largest holder owns ${top1Pct.toFixed(1)}%`);
+    }
+    return RuleResultFactory.hard(
+      'holder-concentration',
+      true,
+      `top 10 own ${top10Pct.toFixed(1)}%, top 1 owns ${top1Pct.toFixed(1)}%`,
+    );
   }
 
-  static validateBundledSupply(snapshot: TokenSnapshot): RuleResult {
+  static validateBundledSupply(snapshot: TokenSnapshot, params: RuleParams): RuleResult {
     const { bundledSupplyPct, sniperSupplyPct } = snapshot.clusters;
-    if (bundledSupplyPct > CHECKLIST_THRESHOLDS.maxBundledSupplyPct) {
-      return RuleResultFactory.hard('bundled-supply', false, `${bundledSupplyPct}% of supply is bundled`);
+    if (bundledSupplyPct > params.maxBundledSupplyPct) {
+      return RuleResultFactory.hard('bundled-supply', false, `${bundledSupplyPct.toFixed(1)}% of supply is bundled`);
     }
-    if (sniperSupplyPct > CHECKLIST_THRESHOLDS.maxSniperSupplyPct) {
-      return RuleResultFactory.hard('bundled-supply', false, `snipers hold ${sniperSupplyPct}% of supply`);
+    if (sniperSupplyPct > params.maxSniperSupplyPct) {
+      return RuleResultFactory.hard('bundled-supply', false, `snipers hold ${sniperSupplyPct.toFixed(1)}% of supply`);
     }
     return RuleResultFactory.hard('bundled-supply', true, 'bundled and sniper supply within limits');
   }
