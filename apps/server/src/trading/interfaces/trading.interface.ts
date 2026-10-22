@@ -49,11 +49,20 @@ export interface Fill {
   signature: string | null;
 }
 
+export interface FlowSignal {
+  trades: number;
+  buyers: number;
+  sellers: number;
+  buyVolumeSol: number;
+  sellVolumeSol: number;
+}
+
 export interface ExitSignals {
   creatorSold: boolean;
   sellStreak: number;
   topHoldersSelling: number;
   liquidityUsd: number;
+  flow: FlowSignal | null;
 }
 
 export interface OpenPositionState {

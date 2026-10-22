@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-10-22
+
+### Added
+- Positions now exit when sellers clearly outnumber buyers over the last 5 minutes, confirmed by sell volume
+
+### Changed
+- The hold limit is no longer a hard cutoff for a profitable position while buyers still lead: it keeps running with a tighter trailing stop up to a cap
+- After the first target recovers the entry cost, the remainder runs past the hold limit on its trailing stop
+- The first profit target now sells at least enough to recover the entry cost plus fees
+- The trader AI is told to size up when its confidence is high instead of hedging with small positions
+
 ## [0.6.0] - 2026-10-22
 
 ### Added

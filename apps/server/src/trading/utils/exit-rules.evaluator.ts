@@ -1,4 +1,12 @@
-import type { ExitAction, ExitSignals, OpenPositionState } from '../interfaces/trading.interface';
+import {
+  EXTENSION_MAX_FACTOR,
+  EXTENSION_MAX_MINUTES,
+  EXTENSION_TRAILING_PCT,
+  FLOW_GRACE_MS,
+  MIN_FLOW_TRADES,
+  SELLER_DOMINANCE_RATIO,
+} from '../constants/flow-exit.constant';
+import type { ExitAction, ExitSignals, FlowSignal, OpenPositionState } from '../interfaces/trading.interface';
 
 const MINUTE_MS = 60_000;
 const PERCENT = 100;
@@ -14,7 +22,8 @@ export class ExitRulesEvaluator {
   ): ExitAction | null {
     return (
       ExitRulesEvaluator.rugSignals(state, signals) ??
-      ExitRulesEvaluator.stops(state, priceSol, nowMs) ??
+      ExitRulesEvaluator.sellerFlow(state, signals, nowMs) ??
+      ExitRulesEvaluator.stops(state, signals, priceSol, nowMs) ??
       ExitRulesEvaluator.takeProfit(state, priceSol)
     );
   }
@@ -36,19 +45,52 @@ export class ExitRulesEvaluator {
     return null;
   }
 
-  private static stops(state: OpenPositionState, priceSol: number, nowMs: number): ExitAction | null {
+  private static sellerFlow(state: OpenPositionState, signals: ExitSignals, nowMs: number): ExitAction | null {
+    const flow = signals.flow;
+    if (!flow || nowMs - state.openedAtMs < FLOW_GRACE_MS) return null;
+    if (!ExitRulesEvaluator.sellersDominate(flow)) return null;
+    return ExitRulesEvaluator.fullExit(`sellers outnumber buyers ${flow.sellers} to ${flow.buyers} in the last 5 minutes`);
+  }
+
+  private static sellersDominate(flow: FlowSignal): boolean {
+    if (flow.trades < MIN_FLOW_TRADES) return false;
+    return flow.sellers >= flow.buyers * SELLER_DOMINANCE_RATIO && flow.sellVolumeSol >= flow.buyVolumeSol;
+  }
+
+  private static buyersHold(flow: FlowSignal | null): boolean {
+    return flow !== null && flow.trades >= MIN_FLOW_TRADES && flow.buyers >= flow.sellers;
+  }
+
+  private static stops(state: OpenPositionState, signals: ExitSignals, priceSol: number, nowMs: number): ExitAction | null {
     const plan = state.context.exitPlan;
     const stopPrice = state.entryPriceSol * (1 - plan.stopLossPct / PERCENT);
     if (priceSol <= stopPrice) return ExitRulesEvaluator.fullExit(`stop loss -${plan.stopLossPct}%`);
 
-    if (nowMs - state.openedAtMs >= plan.maxHoldMinutes * MINUTE_MS) {
-      return ExitRulesEvaluator.fullExit(`hold limit of ${plan.maxHoldMinutes} minutes reached`);
+    const heldMs = nowMs - state.openedAtMs;
+    if (heldMs >= plan.maxHoldMinutes * MINUTE_MS) {
+      const holdExit = ExitRulesEvaluator.holdLimit(state, signals, priceSol, heldMs);
+      if (holdExit) return holdExit;
     }
 
     const trailing = state.peakPriceSol * (1 - plan.trailingStopPct / PERCENT);
     if (state.context.tp1Done && priceSol <= trailing) {
       return ExitRulesEvaluator.fullExit(`trailing stop -${plan.trailingStopPct}% from the peak`);
     }
+    return null;
+  }
+
+  private static holdLimit(state: OpenPositionState, signals: ExitSignals, priceSol: number, heldMs: number): ExitAction | null {
+    const plan = state.context.exitPlan;
+    const hardLimitMinutes = Math.min(plan.maxHoldMinutes * EXTENSION_MAX_FACTOR, EXTENSION_MAX_MINUTES);
+    const reached = ExitRulesEvaluator.fullExit(`hold limit of ${plan.maxHoldMinutes} minutes reached`);
+    if (heldMs >= hardLimitMinutes * MINUTE_MS) return reached;
+    if (state.context.tp1Done) return null;
+
+    const profitable = priceSol > state.entryPriceSol;
+    if (!profitable || !ExitRulesEvaluator.buyersHold(signals.flow)) return reached;
+
+    const trailing = state.peakPriceSol * (1 - EXTENSION_TRAILING_PCT / PERCENT);
+    if (priceSol <= trailing) return ExitRulesEvaluator.fullExit(`price fell ${EXTENSION_TRAILING_PCT}% from the peak after the planned hold`);
     return null;
   }
 

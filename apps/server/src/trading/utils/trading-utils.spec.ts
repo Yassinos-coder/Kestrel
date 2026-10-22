@@ -39,7 +39,13 @@ const buildState = (overrides: Partial<OpenPositionState> = {}): OpenPositionSta
   ...overrides,
 });
 
-const calm: ExitSignals = { creatorSold: false, sellStreak: 0, topHoldersSelling: 0, liquidityUsd: 40_000 };
+const calm: ExitSignals = { creatorSold: false, sellStreak: 0, topHoldersSelling: 0, liquidityUsd: 40_000, flow: null };
+const flow = (buyers: number, sellers: number, buyVolumeSol = 10, sellVolumeSol = 10) => ({ trades: 30, buyers, sellers, buyVolumeSol, sellVolumeSol });
+const scalpState = (heldMinutes: number, overrides: Partial<OpenPositionState> = {}): OpenPositionState => {
+  const state = buildState({ openedAtMs: NOW - heldMinutes * 60_000, peakPriceSol: 1.4, ...overrides });
+  state.context.exitPlan.maxHoldMinutes = 15;
+  return state;
+};
 
 describe('ExitRulesEvaluator', () => {
   it('holds when nothing triggers', () => {
@@ -76,6 +82,51 @@ describe('ExitRulesEvaluator', () => {
   it('hits the time stop', () => {
     const state = buildState({ openedAtMs: NOW - 241 * 60_000 });
     expect(ExitRulesEvaluator.evaluate(state, calm, 1.05, NOW)?.reason).toContain('hold limit');
+  });
+
+  it('exits when sellers clearly outnumber buyers', () => {
+    const action = ExitRulesEvaluator.evaluate(buildState(), { ...calm, flow: flow(10, 20, 5, 12) }, 1.1, NOW);
+    expect(action?.full).toBe(true);
+    expect(action?.reason).toContain('sellers outnumber buyers 20 to 10');
+  });
+
+  it('ignores balanced or thin flow and the first minutes after entry', () => {
+    expect(ExitRulesEvaluator.evaluate(buildState(), { ...calm, flow: flow(15, 16) }, 1.1, NOW)).toBeNull();
+    expect(ExitRulesEvaluator.evaluate(buildState(), { ...calm, flow: { ...flow(2, 9), trades: 6 } }, 1.1, NOW)).toBeNull();
+    const fresh = buildState({ openedAtMs: NOW - 60_000 });
+    expect(ExitRulesEvaluator.evaluate(fresh, { ...calm, flow: flow(10, 30, 2, 20) }, 1.1, NOW)).toBeNull();
+  });
+
+  it('needs sell volume to confirm the seller count', () => {
+    expect(ExitRulesEvaluator.evaluate(buildState(), { ...calm, flow: flow(10, 20, 30, 5) }, 1.1, NOW)).toBeNull();
+  });
+
+  it('keeps a profitable position past the hold limit while buyers still lead', () => {
+    expect(ExitRulesEvaluator.evaluate(scalpState(20), { ...calm, flow: flow(20, 12, 12, 8) }, 1.35, NOW)).toBeNull();
+  });
+
+  it('still exits at the hold limit when flow is unknown, thin or the trade is not in profit', () => {
+    expect(ExitRulesEvaluator.evaluate(scalpState(20), calm, 1.35, NOW)?.reason).toContain('hold limit');
+    expect(ExitRulesEvaluator.evaluate(scalpState(20), { ...calm, flow: flow(20, 12) }, 0.95, NOW)?.reason).toContain('hold limit');
+    expect(ExitRulesEvaluator.evaluate(scalpState(20), { ...calm, flow: { ...flow(20, 5), trades: 4 } }, 1.35, NOW)?.reason).toContain('hold limit');
+  });
+
+  it('trails the peak tightly during an extended hold', () => {
+    const state = scalpState(20, { peakPriceSol: 1.6 });
+    const action = ExitRulesEvaluator.evaluate(state, { ...calm, flow: flow(20, 12, 12, 8) }, 1.3, NOW);
+    expect(action?.reason).toContain('after the planned hold');
+  });
+
+  it('forces an exit once the extension cap is reached', () => {
+    expect(ExitRulesEvaluator.evaluate(scalpState(61), { ...calm, flow: flow(20, 12, 12, 8) }, 1.35, NOW)?.reason).toContain('hold limit');
+  });
+
+  it('lets the free remainder run past the hold limit after the cost is recovered', () => {
+    const state = scalpState(40, { peakPriceSol: 2.4 });
+    state.context.tp1Done = true;
+    expect(ExitRulesEvaluator.evaluate(state, calm, 2.2, NOW)).toBeNull();
+    expect(ExitRulesEvaluator.evaluate(state, calm, 1.5, NOW)?.reason).toContain('trailing');
+    expect(ExitRulesEvaluator.evaluate(scalpState(65, { peakPriceSol: 2.4 }), calm, 2.2, NOW)).not.toBeNull();
   });
 
   it('takes the first profit step and marks it', () => {

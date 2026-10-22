@@ -11,6 +11,7 @@ const MIN_TARGET = 1.1;
 const MIN_STOP_LOSS = 15;
 const MIN_HOLD_MINUTES = 5;
 const TP2_OVER_TP1 = 1.6;
+const RECOUP_COST_BUFFER = 1.05;
 
 export interface ProposedPlan {
   style: 'scalp' | 'swing' | 'runner';
@@ -49,7 +50,7 @@ export class ExitPlanResolver {
       plan: { style, maxHoldMinutes: Math.round(maxHold), takeProfitMultiple: round2(target), stopLossPct: round2(stopLoss) },
       exitPlan: {
         tp1Multiple: round2(target),
-        tp1SellPct: scalp ? SCALP_FIRST_SELL_PCT : params.takeProfit1SellPct,
+        tp1SellPct: Math.max(scalp ? SCALP_FIRST_SELL_PCT : params.takeProfit1SellPct, ExitPlanResolver.recoupPct(target)),
         tp2Multiple: round2(Math.max(params.takeProfit2Multiple, target * TP2_OVER_TP1)),
         tp2SellPct: scalp ? SCALP_SECOND_SELL_PCT : params.takeProfit2SellPct,
         stopLossPct: round2(stopLoss),
@@ -58,6 +59,10 @@ export class ExitPlanResolver {
         sellStreakExit: params.sellStreakExit,
       },
     };
+  }
+
+  static recoupPct(targetMultiple: number): number {
+    return Math.min(100, Math.ceil((100 * RECOUP_COST_BUFFER) / targetMultiple));
   }
 
   private static limit(

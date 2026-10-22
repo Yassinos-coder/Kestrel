@@ -8,6 +8,7 @@ import type { ExitSignals, PoolState, PositionContext } from '../interfaces/trad
 import { PositionRepository } from '../repositories/position.repository';
 import { ExitEvidenceBuilder } from '../utils/exit-evidence.builder';
 import { ExitRulesEvaluator } from '../utils/exit-rules.evaluator';
+import { FlowSignalBuilder } from '../utils/flow-signal.builder';
 import { EngineStatusService } from './engine-status.service';
 import { PositionService } from './position.service';
 
@@ -77,7 +78,7 @@ export class GuardianService implements OnApplicationBootstrap, OnModuleDestroy 
         this.logger.warn(`No market data for open position ${position.symbol}`);
         continue;
       }
-      await this.guard(position, pair, lookups.has(position.id));
+      await this.guard(position, pair, lookups.has(position.id) || this.pastHoldLimit(position));
     }
   }
 
@@ -88,7 +89,7 @@ export class GuardianService implements OnApplicationBootstrap, OnModuleDestroy 
 
     const context = position.context as unknown as PositionContext;
     const trades = loadTrades ? await this.loadTrades(position.pairAddress) : [];
-    const signals = this.computeSignals(context, trades, position.openedAt.getTime(), pair.liquidityUsd);
+    const signals = this.computeSignals(context, trades, position.openedAt.getTime(), pair.liquidityUsd, loadTrades);
 
     const action = ExitRulesEvaluator.evaluate(
       {
@@ -121,7 +122,7 @@ export class GuardianService implements OnApplicationBootstrap, OnModuleDestroy 
     await this.positions.update(position.id, { context: { ...context, exitEvidence } });
   }
 
-  private computeSignals(context: PositionContext, trades: PoolTrade[], openedAtMs: number, liquidityUsd: number): ExitSignals {
+  private computeSignals(context: PositionContext, trades: PoolTrade[], openedAtMs: number, liquidityUsd: number, tradesLoaded: boolean): ExitSignals {
     const sinceOpen = trades.filter((trade) => trade.timestampMs >= openedAtMs).sort((a, b) => b.timestampMs - a.timestampMs);
     const recentCutoff = Date.now() - TOP_HOLDER_WINDOW_MS;
     const topHolders = new Set(context.topHolderOwners);
@@ -133,6 +134,7 @@ export class GuardianService implements OnApplicationBootstrap, OnModuleDestroy 
         sinceOpen.filter((trade) => trade.kind === 'sell' && trade.timestampMs >= recentCutoff && topHolders.has(trade.wallet)).map((trade) => trade.wallet),
       ).size,
       liquidityUsd,
+      flow: tradesLoaded ? FlowSignalBuilder.build(trades, Date.now()) : null,
     };
   }
 
@@ -143,6 +145,11 @@ export class GuardianService implements OnApplicationBootstrap, OnModuleDestroy 
       streak++;
     }
     return streak;
+  }
+
+  private pastHoldLimit(position: Position): boolean {
+    const context = position.context as unknown as PositionContext;
+    return Date.now() - position.openedAt.getTime() >= context.exitPlan.maxHoldMinutes * 60_000;
   }
 
   private selectTradeLookups(open: Position[]): Set<string> {
