@@ -2,6 +2,8 @@ const DEFAULT_PORT = 3000;
 const DEFAULT_API_PREFIX = 'api';
 const DEFAULT_TRADER_MODEL = 'claude-opus-5-5';
 const DEFAULT_LIGHT_MODEL = 'claude-haiku-5-5';
+const DEFAULT_NVIDIA_TRADER_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b';
+const DEFAULT_NVIDIA_LIGHT_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b';
 const DEFAULT_REVIEW_CRON = '0 23 * * *';
 const DEFAULT_WEEKLY_REPORT_CRON = '59 23 * * 0';
 const DEFAULT_TIMEZONE = 'UTC';
@@ -37,6 +39,14 @@ export default () => ({
   },
   birdeye: {
     apiKey: process.env.BIRDEYE_API_KEY || undefined,
+  },
+  ai: {
+    provider: process.env.AI_PROVIDER === 'nvidia' ? 'nvidia' : 'anthropic',
+  },
+  nvidia: {
+    apiKey: process.env.NVIDIA_API_KEY || undefined,
+    traderModel: process.env.NVIDIA_TRADER_MODEL || DEFAULT_NVIDIA_TRADER_MODEL,
+    lightModel: process.env.NVIDIA_LIGHT_MODEL || DEFAULT_NVIDIA_LIGHT_MODEL,
   },
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY,

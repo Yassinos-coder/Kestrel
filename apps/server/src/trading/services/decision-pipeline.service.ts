@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ChecklistReport, CostEstimateView } from '@kestrel/shared';
 import { AnalystAgentService } from '../../agents/services/analyst-agent.service';
-import { ClaudeService } from '../../agents/services/claude.service';
+import { LlmService } from '../../agents/services/llm.service';
 import { TraderAgentService } from '../../agents/services/trader-agent.service';
 import type { TraderDecision } from '../../agents/schemas/agent-outputs.schema';
 import { ChecklistService } from '../../checklist/services/checklist.service';
@@ -19,6 +19,7 @@ import type { PoolState } from '../interfaces/trading.interface';
 import { DecisionRepository } from '../repositories/decision.repository';
 import { PositionRepository } from '../repositories/position.repository';
 import { TokenScanRepository } from '../repositories/token-scan.repository';
+import { AnalystGate } from '../utils/analyst-gate.util';
 import { ConfidenceRequirement } from '../utils/confidence-requirement.util';
 import { ExitPlanResolver, type ProposedPlan } from '../utils/exit-plan.resolver';
 import { PositionSizer } from '../utils/position-sizer.util';
@@ -56,7 +57,7 @@ export class DecisionPipelineService {
     private readonly lessons: LessonService,
     private readonly analyst: AnalystAgentService,
     private readonly trader: TraderAgentService,
-    private readonly claude: ClaudeService,
+    private readonly llm: LlmService,
     private readonly forensics: ForensicsService,
     private readonly notifications: NotificationService,
     private readonly solPrice: SolPriceService,
@@ -110,7 +111,7 @@ export class DecisionPipelineService {
       return;
     }
 
-    await this.decide(settings, state, rules, enriched, scan, report);
+    await this.decide(settings, state, rules, enriched, scan, report, forced);
   }
 
   private async decide(
@@ -120,6 +121,7 @@ export class DecisionPipelineService {
     snapshot: TokenSnapshot,
     scan: TokenScan,
     report: ChecklistReport,
+    forced: boolean,
   ): Promise<void> {
     const userId = settings.userId;
     const features = TradeFeaturesMapper.fromSnapshot(snapshot);
@@ -131,10 +133,14 @@ export class DecisionPipelineService {
       return;
     }
 
-    const analyst = this.claude.isAvailable() ? await this.analyst.report(snapshot, report, userId) : null;
+    const analyst = this.llm.isAvailable() ? await this.analyst.report(snapshot, report, userId) : null;
+    if (analyst && AnalystGate.blocks(analyst, forced)) {
+      await this.record(userId, scan, snapshot, 'SKIP', report, { reasoning: AnalystGate.reason(analyst), agents: { analyst, matchedPlaybooks: matchedNames, usedAi: true } });
+      return;
+    }
     const lessons = await this.lessons.findSimilar(userId, features, LESSONS_IN_PROMPT);
     const costs = this.estimateCosts(snapshot, rules, state, effect.sizeMultiplier, settings.mode === 'LIVE');
-    const aiDecision = this.claude.isAvailable()
+    const aiDecision = this.llm.isAvailable()
       ? await this.trader.decide({
           snapshot,
           report,
@@ -153,6 +159,14 @@ export class DecisionPipelineService {
           costs,
         })
       : null;
+
+    if (this.llm.isAvailable() && !aiDecision) {
+      await this.record(userId, scan, snapshot, 'SKIP', report, {
+        reasoning: 'The AI trader did not return a decision, so the token was skipped.',
+        agents: { analyst, matchedPlaybooks: matchedNames, usedAi: true },
+      });
+      return;
+    }
 
     const resolved = this.resolve(aiDecision, report);
     const agents = { analyst, matchedPlaybooks: matchedNames, lessonsUsed: lessons.length, usedAi: resolved.usedAi, costs: costs.find((item) => item.sizeFraction === resolved.sizeFraction)?.cost ?? null };

@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { TRADER_AGENT_PROMPT, WRAP_TOKEN_DATA } from '../constants/agent-prompts.constant';
 import type { TraderInput } from '../interfaces/agent-inputs.interface';
 import { TraderDecisionSchema, type TraderDecision } from '../schemas/agent-outputs.schema';
-import { ClaudeService } from './claude.service';
+import { LlmService } from './llm.service';
 
 @Injectable()
 export class TraderAgentService {
-  constructor(private readonly claude: ClaudeService) {}
+  constructor(private readonly llm: LlmService) {}
 
   decide(input: TraderInput): Promise<TraderDecision | null> {
     const { snapshot, report, analyst, portfolio, rules, matchedPlaybooks, lessons, costs } = input;
@@ -63,10 +63,10 @@ export class TraderAgentService {
       },
     };
 
-    return this.claude.structured({
+    return this.llm.structured({
       label: `trader:${snapshot.symbol}`,
       userId: input.userId,
-      model: this.claude.traderModel,
+      model: this.llm.traderModel,
       system: TRADER_AGENT_PROMPT,
       user: WRAP_TOKEN_DATA(JSON.stringify(data)),
       schema: TraderDecisionSchema,

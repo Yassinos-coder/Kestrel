@@ -3,11 +3,11 @@ import type { ChecklistReport } from '@kestrel/shared';
 import type { TokenMarketSnapshot } from '../../checklist/interfaces/token-snapshot.interface';
 import { ANALYST_AGENT_PROMPT, WRAP_TOKEN_DATA } from '../constants/agent-prompts.constant';
 import { AnalystReportSchema, type AnalystReport } from '../schemas/agent-outputs.schema';
-import { ClaudeService } from './claude.service';
+import { LlmService } from './llm.service';
 
 @Injectable()
 export class AnalystAgentService {
-  constructor(private readonly claude: ClaudeService) {}
+  constructor(private readonly llm: LlmService) {}
 
   async report(snapshot: TokenMarketSnapshot, checklist: ChecklistReport, userId: string): Promise<AnalystReport | null> {
     const data = {
@@ -30,10 +30,10 @@ export class AnalystAgentService {
       },
       checklist: checklist.results.map((result) => ({ rule: result.rule, status: result.status, reason: result.reason })),
     };
-    return this.claude.structured({
+    return this.llm.structured({
       label: `analyst:${snapshot.symbol}`,
       userId,
-      model: this.claude.lightModel,
+      model: this.llm.lightModel,
       system: ANALYST_AGENT_PROMPT,
       user: WRAP_TOKEN_DATA(JSON.stringify(data)),
       schema: AnalystReportSchema,

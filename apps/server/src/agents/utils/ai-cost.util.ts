@@ -1,4 +1,4 @@
-import { AI_TOKENS_PER_MILLION, HAIKU_PRICING, OPUS_PRICING, type ModelPricing } from '../constants/ai-pricing.constant';
+import { AI_TOKENS_PER_MILLION, FREE_PRICING, HAIKU_PRICING, OPUS_PRICING, type ModelPricing } from '../constants/ai-pricing.constant';
 
 export class AiCostUtil {
   static costUsd(model: string, inputTokens: number, outputTokens: number): number {
@@ -7,6 +7,9 @@ export class AiCostUtil {
   }
 
   private static pricingFor(model: string): ModelPricing {
-    return model.toLowerCase().includes('haiku') ? HAIKU_PRICING : OPUS_PRICING;
+    const name = model.toLowerCase();
+    if (name.includes('haiku')) return HAIKU_PRICING;
+    if (name.includes('claude') || name.includes('opus') || name.includes('sonnet')) return OPUS_PRICING;
+    return FREE_PRICING;
   }
 }

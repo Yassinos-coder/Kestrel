@@ -2,19 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { LEARNING_AGENT_PROMPT, WRAP_TOKEN_DATA } from '../constants/agent-prompts.constant';
 import type { PostMortemInput } from '../interfaces/agent-inputs.interface';
 import { PostMortemSchema, type PostMortem } from '../schemas/agent-outputs.schema';
-import { ClaudeService } from './claude.service';
+import { LlmService } from './llm.service';
 
 const MAX_TAGS = 4;
 
 @Injectable()
 export class LearningAgentService {
-  constructor(private readonly claude: ClaudeService) {}
+  constructor(private readonly llm: LlmService) {}
 
   async postMortem(input: PostMortemInput, userId: string): Promise<PostMortem> {
-    const ai = await this.claude.structured({
+    const ai = await this.llm.structured({
       label: `postmortem:${input.symbol}`,
       userId,
-      model: this.claude.lightModel,
+      model: this.llm.lightModel,
       system: LEARNING_AGENT_PROMPT,
       user: WRAP_TOKEN_DATA(JSON.stringify(input)),
       schema: PostMortemSchema,

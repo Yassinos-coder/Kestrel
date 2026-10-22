@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-10-22
+
+### Added
+- AI calls now go through a provider-neutral layer, with an optional NVIDIA provider that stays off unless AI_PROVIDER is set to nvidia
+
+### Changed
+- Tokens the analyst rates high risk are no longer sent to the trader model, which cuts most of the trader calls and the AI cost; tokens you suggest yourself still get the full evaluation
+- If the AI trader fails to answer, the token is skipped instead of being bought at half size by the rules-only fallback
+
 ## [0.9.0] - 2026-10-22
 
 ### Added

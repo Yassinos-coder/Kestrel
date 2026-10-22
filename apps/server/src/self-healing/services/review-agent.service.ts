@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { MissedOpportunitiesView, Playbook, RuleParams } from '@kestrel/shared';
-import { ClaudeService } from '../../agents/services/claude.service';
+import { LlmService } from '../../agents/services/llm.service';
 import { REVIEW_AGENT_PROMPT, WRAP_TOKEN_DATA } from '../../agents/constants/agent-prompts.constant';
 import { RULE_PARAM_BOUNDS } from '../../rules/constants/rule-param-bounds.constant';
 import type { DayStats, FeatureComparison, RejectionStats, ScoredTrade } from '../interfaces/review.interface';
@@ -28,10 +28,10 @@ export interface ReviewDigest {
 
 @Injectable()
 export class ReviewAgentService {
-  constructor(private readonly claude: ClaudeService) {}
+  constructor(private readonly llm: LlmService) {}
 
   isAvailable(): boolean {
-    return this.claude.isAvailable();
+    return this.llm.isAvailable();
   }
 
   review(digest: ReviewDigest, userId: string): Promise<ReviewOutput | null> {
@@ -40,10 +40,10 @@ export class ReviewAgentService {
       allowedParameterRanges: RULE_PARAM_BOUNDS,
       guardrails: 'Each parameter can move at most 25% per review and must stay inside its range. At most 5 parameter changes.',
     };
-    return this.claude.structured({
+    return this.llm.structured({
       label: 'nightly-review',
       userId,
-      model: this.claude.traderModel,
+      model: this.llm.traderModel,
       system: REVIEW_AGENT_PROMPT,
       user: WRAP_TOKEN_DATA(JSON.stringify(payload)),
       schema: ReviewOutputSchema,
