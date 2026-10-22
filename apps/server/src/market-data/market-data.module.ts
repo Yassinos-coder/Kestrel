@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BirdeyeClient } from './clients/birdeye.client';
 import { DexScreenerClient } from './clients/dexscreener.client';
 import { GeckoTerminalClient } from './clients/geckoterminal.client';
 import { HeliusClient } from './clients/helius.client';
@@ -11,6 +12,7 @@ import { TokenSnapshotBuilderService } from './services/token-snapshot-builder.s
 
 @Module({
   providers: [
+    BirdeyeClient,
     GeckoTerminalClient,
     HeliusClient,
     DexScreenerClient,
@@ -22,6 +24,7 @@ import { TokenSnapshotBuilderService } from './services/token-snapshot-builder.s
     SolPriceService,
   ],
   exports: [
+    BirdeyeClient,
     GeckoTerminalClient,
     HeliusClient,
     DexScreenerClient,

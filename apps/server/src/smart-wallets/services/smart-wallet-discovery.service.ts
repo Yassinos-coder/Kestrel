@@ -1,6 +1,10 @@
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { WalletDiscoveryResult } from '@kestrel/shared';
+import { BirdeyeClient } from '../../market-data/clients/birdeye.client';
+import type { WalletPerformanceSummary } from '../../market-data/interfaces/birdeye.interface';
+import { SolPriceService } from '../../market-data/services/sol-price.service';
+import { WalletVettingValidator } from '../validators/wallet-vetting.validator';
 import { DexScreenerClient } from '../../market-data/clients/dexscreener.client';
 import { GeckoTerminalClient } from '../../market-data/clients/geckoterminal.client';
 import { HeliusClient } from '../../market-data/clients/helius.client';
@@ -15,7 +19,11 @@ import { WalletScorer } from '../utils/wallet-scorer';
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
 const WINNERS_PER_RUN = 8;
+const SMART_TRADER_TAG = 'smart_trader';
+const SMART_TRADER_WEIGHT = 10;
+const TOP_TRADER_WEIGHT = 4;
 const CANDIDATES_PER_RUN = 25;
+const VETTED_CANDIDATES_PER_RUN = 40;
 const REFRESH_PER_RUN = 5;
 const MIN_WINNER_VOLUME_USD = 150_000;
 const MAX_WINNER_VOLUME_USD = 15_000_000;
@@ -43,6 +51,8 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
     private readonly gecko: GeckoTerminalClient,
     private readonly dexScreener: DexScreenerClient,
     private readonly helius: HeliusClient,
+    private readonly birdeye: BirdeyeClient,
+    private readonly solPrice: SolPriceService,
     private readonly wallets: SmartWalletRepository,
     private readonly configService: ConfigService,
   ) {}
@@ -86,10 +96,12 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
     for (const winner of winners) {
       for (const address of new Set(await this.walletsFromToken(winner))) appearances.set(address, (appearances.get(address) ?? 0) + 1);
     }
+    await this.addBirdeyeTraders(winners, appearances);
     const ranked = [...appearances.entries()].sort((a, b) => b[1] - a[1]).map(([address]) => address);
 
     const refresh = (await this.wallets.listOldestUpdated(REFRESH_PER_RUN)).map((wallet) => wallet.address);
-    const queue = [...refresh, ...ranked.filter((address) => !this.recentlyChecked(address))].slice(0, CANDIDATES_PER_RUN + REFRESH_PER_RUN);
+    const budget = this.birdeye.isAvailable() ? VETTED_CANDIDATES_PER_RUN : CANDIDATES_PER_RUN;
+    const queue = [...refresh, ...ranked.filter((address) => !this.recentlyChecked(address))].slice(0, budget + REFRESH_PER_RUN);
 
     const outcomes = await this.mapLimited(queue, (address) => this.evaluate(address));
     const qualified = outcomes.filter(Boolean).length;
@@ -105,6 +117,16 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
     const assessment = await this.assess(address, force);
     if (!assessment) throw new NotFoundException('Not enough swap history on this wallet to copy it');
     return this.wallets.upsert(address, assessment);
+  }
+
+  private async addBirdeyeTraders(winners: TrendingWinner[], appearances: Map<string, number>): Promise<void> {
+    if (!this.birdeye.isAvailable()) return;
+    for (const winner of winners) {
+      for (const trader of await this.birdeye.getTopTraders(winner.mint)) {
+        const weight = trader.tags.includes(SMART_TRADER_TAG) ? SMART_TRADER_WEIGHT : TOP_TRADER_WEIGHT;
+        appearances.set(trader.wallet, (appearances.get(trader.wallet) ?? 0) + weight);
+      }
+    }
   }
 
   private async walletsFromToken(winner: TrendingWinner): Promise<string[]> {
@@ -126,7 +148,8 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
   private async evaluate(address: string): Promise<boolean> {
     this.checked.set(address, Date.now());
     try {
-      const assessment = await this.assess(address);
+      const summary = await this.birdeye.getWalletSummary(address);
+      const assessment = summary ? await this.assessVetted(address, summary) : await this.assess(address);
       if (!assessment?.tier) {
         await this.wallets.markStale(address);
         return false;
@@ -137,6 +160,13 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
       this.logger.debug(`Could not assess ${address.slice(0, 6)}: ${error instanceof Error ? error.message : 'unknown error'}`);
       return false;
     }
+  }
+
+  private async assessVetted(address: string, summary: WalletPerformanceSummary): Promise<WalletAssessment | null> {
+    if (!WalletVettingValidator.passes(summary)) return null;
+    const assessment = await this.assess(address, true);
+    if (!assessment) return null;
+    return WalletScorer.assessVetted(assessment.stats, summary, await this.solPrice.getUsd(), Date.now());
   }
 
   private async assess(address: string, skipQuickCheck = false): Promise<WalletAssessment | null> {

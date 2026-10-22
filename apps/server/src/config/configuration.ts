@@ -35,6 +35,9 @@ export default () => ({
     heliusConfigured: Boolean(process.env.HELIUS_API_KEY),
     heliusApiKey: process.env.HELIUS_API_KEY || undefined,
   },
+  birdeye: {
+    apiKey: process.env.BIRDEYE_API_KEY || undefined,
+  },
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY,
     traderModel: process.env.ANTHROPIC_TRADER_MODEL || DEFAULT_TRADER_MODEL,

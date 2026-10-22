@@ -1,3 +1,4 @@
+import type { WalletPerformanceSummary } from '../../market-data/interfaces/birdeye.interface';
 import type { WalletAssessment, WalletStats, WalletTier } from '../interfaces/wallet.interface';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -11,12 +12,44 @@ const MIN_MEDIAN_HOLD_MINUTES = 0.5;
 const MIN_SOL_SIDED_PCT = 50;
 const MAX_INACTIVE_DAYS = 5;
 const NEUTRAL_EARLINESS = 7;
+const MIN_READABLE_SWAPS = 5;
 
 export class WalletScorer {
   static assess(stats: WalletStats, nowMs: number): WalletAssessment {
     const rejectReasons = WalletScorer.rejections(stats, nowMs);
     const score = Math.round(WalletScorer.score(stats, nowMs));
     return { stats, score, tier: rejectReasons.length ? null : WalletScorer.tier(score), rejectReasons };
+  }
+
+  static assessVetted(stats: WalletStats, summary: WalletPerformanceSummary, solUsd: number, nowMs: number): WalletAssessment {
+    const merged: WalletStats = {
+      ...stats,
+      winRatePct: summary.winRatePct,
+      closedTokens: summary.wins + summary.losses,
+      tokensTraded: summary.uniqueTokens,
+      totalPnlSol: solUsd > 0 ? summary.realizedProfitUsd / solUsd : 0,
+    };
+    const rejectReasons = WalletScorer.vettedRejections(stats, nowMs);
+    const score = Math.round(WalletScorer.vettedScore(merged, summary, nowMs));
+    return { stats: merged, score, tier: rejectReasons.length ? null : WalletScorer.tier(score), rejectReasons };
+  }
+
+  private static vettedRejections(stats: WalletStats, nowMs: number): string[] {
+    const reasons: string[] = [];
+    if (stats.swapsAnalyzed < MIN_READABLE_SWAPS) reasons.push('swaps cannot be read, so they could not be copied');
+    if (stats.swapsPerDay > MAX_SWAPS_PER_DAY) reasons.push('trades like a bot (too many swaps per day)');
+    if (nowMs - stats.lastActiveMs > MAX_INACTIVE_DAYS * DAY_MS) reasons.push('no recent activity');
+    return reasons;
+  }
+
+  private static vettedScore(stats: WalletStats, summary: WalletPerformanceSummary, nowMs: number): number {
+    const winRate = WalletScorer.clamp((summary.winRatePct - 30) / 40) * 25;
+    const breadth = WalletScorer.clamp(summary.uniqueTokens / 30) * 10;
+    const profit = WalletScorer.clamp(Math.log10(1 + Math.max(0, stats.totalPnlSol)) / Math.log10(101)) * 25;
+    const returns = WalletScorer.clamp(summary.realizedProfitPct / 300) * 15;
+    const recency = nowMs - stats.lastActiveMs <= 2 * DAY_MS ? 5 : 2;
+    const humanLike = stats.swapsPerDay <= 80 ? 10 : 5;
+    return winRate + breadth + profit + returns + recency + humanLike;
   }
 
   private static rejections(stats: WalletStats, nowMs: number): string[] {

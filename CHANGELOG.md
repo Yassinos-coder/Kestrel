@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-10-22
+
+### Added
+- Birdeye wallet source: with a BIRDEYE_API_KEY set, the top traders of each winning token are nominated as copy candidates, and every candidate is checked on its 30 day record across all tokens (win rate, realized profit, return and number of tokens) before any swap history is read
+- Wallets that pass that check are tiered on their verified profit record, and the numbers shown on the Smart wallets page come from it
+- Wallet discovery checks up to 40 wallets per run when Birdeye is available
+
+### Changed
+- Without a Birdeye key, wallet discovery behaves as before
+
 ## [0.8.0] - 2026-10-22
 
 ### Added
