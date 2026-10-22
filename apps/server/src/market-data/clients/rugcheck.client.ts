@@ -11,7 +11,7 @@ interface RugHolder {
 }
 
 interface RugMarket {
-  lp?: { lpLockedPct?: number };
+  lp?: { lpLockedPct?: number; lpLockedUSD?: number; quoteUSD?: number; baseUSD?: number };
 }
 
 interface RugInsiderNetwork {
@@ -77,7 +77,7 @@ export class RugCheckClient {
         insider: holder.insider,
       })),
       ammAccounts: this.collectExcludedAccounts(report),
-      lpLockedPct: this.lowestLpLockedPct(report.markets ?? []),
+      lpLockedPct: this.lockedLiquidityPct(report.markets ?? []),
       insiderNetworkHolding: supply > 0 ? insiderNetworks.reduce((sum, network) => sum + network.currentHolding, 0) / supply : 0,
       insiderNetworkCount: insiderNetworks.length,
       creatorTokenCount: creatorTokens.length,
@@ -93,9 +93,14 @@ export class RugCheckClient {
     return excluded;
   }
 
-  private lowestLpLockedPct(markets: RugMarket[]): number {
-    const values = markets.map((market) => market.lp?.lpLockedPct).filter((value): value is number => value !== undefined);
-    if (!values.length) return 0;
-    return Math.min(...values);
+  private lockedLiquidityPct(markets: RugMarket[]): number {
+    const pools = markets.flatMap((market) => (market.lp?.lpLockedPct === undefined ? [] : [market.lp]));
+    if (!pools.length) return 0;
+
+    const totalUsd = pools.reduce((sum, pool) => sum + (pool.quoteUSD ?? 0) + (pool.baseUSD ?? 0), 0);
+    if (totalUsd <= 0) return Math.min(...pools.map((pool) => pool.lpLockedPct ?? 0));
+
+    const lockedUsd = pools.reduce((sum, pool) => sum + Math.min(pool.lpLockedUSD ?? 0, (pool.quoteUSD ?? 0) + (pool.baseUSD ?? 0)), 0);
+    return (lockedUsd / totalUsd) * 100;
   }
 }

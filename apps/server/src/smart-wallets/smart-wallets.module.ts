@@ -15,6 +15,6 @@ import { SmartWalletDiscoveryService } from './services/smart-wallet-discovery.s
   imports: [MarketDataModule, NotificationsModule, RulesModule, SettingsModule, TradingModule],
   controllers: [SmartWalletsController],
   providers: [SmartWalletRepository, CopyFollowRepository, CopyFollowStatsService, SmartWalletDiscoveryService, CopyTradingService],
-  exports: [SmartWalletRepository, CopyFollowRepository, SmartWalletDiscoveryService],
+  exports: [SmartWalletRepository, CopyFollowRepository, CopyFollowStatsService, SmartWalletDiscoveryService],
 })
 export class SmartWalletsModule {}
