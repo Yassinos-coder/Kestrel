@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-10-22
+
+### Fixed
+- The top holders selling exit no longer fires on routine profit taking: it now needs sellers to outweigh buyers by volume and waits one minute after entry
+- Railway builds now compile the shared package first so the server and web app build
+
+### Changed
+- Railway configuration now includes the database and domains, imported from the live project
+
 ## [0.7.0] - 2026-10-22
 
 ### Added

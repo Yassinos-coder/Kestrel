@@ -64,9 +64,27 @@ describe('ExitRulesEvaluator', () => {
     expect(action?.reason).toContain('consecutive sells');
   });
 
-  it('exits fully when several top holders sell', () => {
-    const action = ExitRulesEvaluator.evaluate(buildState(), { ...calm, topHoldersSelling: 3 }, 1.1, NOW);
+  it('exits fully when several top holders sell and sellers outweigh buyers', () => {
+    const action = ExitRulesEvaluator.evaluate(buildState(), { ...calm, topHoldersSelling: 3, flow: flow(10, 11, 8, 10) }, 1.1, NOW);
+    expect(action?.full).toBe(true);
     expect(action?.reason).toContain('top holders');
+  });
+
+  it('ignores top holders taking profit while buyers still dominate the volume', () => {
+    const signals = { ...calm, topHoldersSelling: 4, flow: flow(40, 48, 20, 9) };
+    expect(ExitRulesEvaluator.evaluate(buildState(), signals, 1.0, NOW)).toBeNull();
+  });
+
+  it('ignores top holder sells with no flow data and in the first minute after entry', () => {
+    expect(ExitRulesEvaluator.evaluate(buildState(), { ...calm, topHoldersSelling: 4 }, 1.0, NOW)).toBeNull();
+    const fresh = buildState({ openedAtMs: NOW - 30_000 });
+    expect(ExitRulesEvaluator.evaluate(fresh, { ...calm, topHoldersSelling: 4, flow: flow(5, 20, 1, 30) }, 1.0, NOW)).toBeNull();
+  });
+
+  it('still exits instantly on a creator sell or a liquidity collapse', () => {
+    const fresh = buildState({ openedAtMs: NOW - 10_000 });
+    expect(ExitRulesEvaluator.evaluate(fresh, { ...calm, creatorSold: true }, 1.0, NOW)?.reason).toContain('creator');
+    expect(ExitRulesEvaluator.evaluate(fresh, { ...calm, liquidityUsd: 20_000 }, 1.0, NOW)?.reason).toContain('liquidity');
   });
 
   it('exits fully when liquidity collapses', () => {

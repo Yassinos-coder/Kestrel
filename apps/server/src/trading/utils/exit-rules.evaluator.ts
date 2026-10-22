@@ -5,6 +5,7 @@ import {
   FLOW_GRACE_MS,
   MIN_FLOW_TRADES,
   SELLER_DOMINANCE_RATIO,
+  TOP_HOLDER_GRACE_MS,
 } from '../constants/flow-exit.constant';
 import type { ExitAction, ExitSignals, FlowSignal, OpenPositionState } from '../interfaces/trading.interface';
 
@@ -21,21 +22,21 @@ export class ExitRulesEvaluator {
     nowMs: number,
   ): ExitAction | null {
     return (
-      ExitRulesEvaluator.rugSignals(state, signals) ??
+      ExitRulesEvaluator.rugSignals(state, signals, nowMs) ??
       ExitRulesEvaluator.sellerFlow(state, signals, nowMs) ??
       ExitRulesEvaluator.stops(state, signals, priceSol, nowMs) ??
       ExitRulesEvaluator.takeProfit(state, priceSol)
     );
   }
 
-  private static rugSignals(state: OpenPositionState, signals: ExitSignals): ExitAction | null {
+  private static rugSignals(state: OpenPositionState, signals: ExitSignals, nowMs: number): ExitAction | null {
     const plan = state.context.exitPlan;
     if (signals.creatorSold) return ExitRulesEvaluator.fullExit('creator wallet sold');
     if (signals.sellStreak >= plan.sellStreakExit) {
       return ExitRulesEvaluator.fullExit(`${signals.sellStreak} consecutive sells with no buyers`);
     }
-    if (signals.topHoldersSelling >= TOP_HOLDER_SELL_EXIT_COUNT) {
-      return ExitRulesEvaluator.fullExit(`${signals.topHoldersSelling} top holders are selling`);
+    if (signals.topHoldersSelling >= TOP_HOLDER_SELL_EXIT_COUNT && ExitRulesEvaluator.topHoldersDumping(state, signals, nowMs)) {
+      return ExitRulesEvaluator.fullExit(`${signals.topHoldersSelling} top holders are selling while sellers outweigh buyers`);
     }
     const entryLiquidity = state.context.entryLiquidityUsd;
     if (entryLiquidity > 0 && signals.liquidityUsd > 0) {
@@ -43,6 +44,12 @@ export class ExitRulesEvaluator {
       if (dropPct >= LIQUIDITY_DROP_EXIT_PCT) return ExitRulesEvaluator.fullExit(`liquidity fell ${dropPct.toFixed(0)}%`);
     }
     return null;
+  }
+
+  private static topHoldersDumping(state: OpenPositionState, signals: ExitSignals, nowMs: number): boolean {
+    if (nowMs - state.openedAtMs < TOP_HOLDER_GRACE_MS) return false;
+    const flow = signals.flow;
+    return flow !== null && flow.sellVolumeSol >= flow.buyVolumeSol;
   }
 
   private static sellerFlow(state: OpenPositionState, signals: ExitSignals, nowMs: number): ExitAction | null {
