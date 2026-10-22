@@ -14,7 +14,7 @@ import { WalletScorer } from '../utils/wallet-scorer';
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
-const WINNERS_PER_RUN = 4;
+const WINNERS_PER_RUN = 8;
 const CANDIDATES_PER_RUN = 25;
 const REFRESH_PER_RUN = 5;
 const MIN_WINNER_VOLUME_USD = 150_000;
@@ -82,13 +82,14 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
       .sort((a, b) => b.change24hPct - a.change24hPct)
       .slice(0, WINNERS_PER_RUN);
 
-    const candidates = new Set<string>();
+    const appearances = new Map<string, number>();
     for (const winner of winners) {
-      for (const address of await this.walletsFromToken(winner)) candidates.add(address);
+      for (const address of new Set(await this.walletsFromToken(winner))) appearances.set(address, (appearances.get(address) ?? 0) + 1);
     }
+    const ranked = [...appearances.entries()].sort((a, b) => b[1] - a[1]).map(([address]) => address);
 
     const refresh = (await this.wallets.listOldestUpdated(REFRESH_PER_RUN)).map((wallet) => wallet.address);
-    const queue = [...refresh, ...[...candidates].filter((address) => !this.recentlyChecked(address))].slice(0, CANDIDATES_PER_RUN + REFRESH_PER_RUN);
+    const queue = [...refresh, ...ranked.filter((address) => !this.recentlyChecked(address))].slice(0, CANDIDATES_PER_RUN + REFRESH_PER_RUN);
 
     const outcomes = await this.mapLimited(queue, (address) => this.evaluate(address));
     const qualified = outcomes.filter(Boolean).length;

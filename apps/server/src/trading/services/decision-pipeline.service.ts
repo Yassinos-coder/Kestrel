@@ -19,6 +19,7 @@ import type { PoolState } from '../interfaces/trading.interface';
 import { DecisionRepository } from '../repositories/decision.repository';
 import { PositionRepository } from '../repositories/position.repository';
 import { TokenScanRepository } from '../repositories/token-scan.repository';
+import { ConfidenceRequirement } from '../utils/confidence-requirement.util';
 import { ExitPlanResolver, type ProposedPlan } from '../utils/exit-plan.resolver';
 import { PositionSizer } from '../utils/position-sizer.util';
 import { TradeCostUtil } from '../utils/trade-cost.util';
@@ -156,9 +157,11 @@ export class DecisionPipelineService {
     const resolved = this.resolve(aiDecision, report);
     const agents = { analyst, matchedPlaybooks: matchedNames, lessonsUsed: lessons.length, usedAi: resolved.usedAi, costs: costs.find((item) => item.sizeFraction === resolved.sizeFraction)?.cost ?? null };
 
-    if (resolved.action === 'skip' || resolved.confidence < rules.params.minConfidence) {
+    const requiredConfidence = ConfidenceRequirement.required(rules.params.minConfidence, snapshot.holders.top1Pct);
+    if (resolved.action === 'skip' || resolved.confidence < requiredConfidence) {
+      const whaleNote = ConfidenceRequirement.hasWhale(snapshot.holders.top1Pct) ? ` One holder owns ${snapshot.holders.top1Pct.toFixed(1)}% of the supply, so a higher conviction is needed.` : '';
       const reasoning =
-        resolved.action === 'skip' ? resolved.reasoning : `Confidence ${resolved.confidence} is below the required ${rules.params.minConfidence}. ${resolved.reasoning}`;
+        resolved.action === 'skip' ? resolved.reasoning : `Confidence ${resolved.confidence} is below the required ${requiredConfidence}.${whaleNote} ${resolved.reasoning}`;
       await this.record(userId, scan, snapshot, 'SKIP', report, { reasoning, confidence: resolved.confidence, agents });
       return;
     }

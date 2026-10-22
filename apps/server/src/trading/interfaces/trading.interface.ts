@@ -25,7 +25,21 @@ export interface PositionContext {
   reasoning: string;
   earlyBuyerWallets?: string[];
   exitEvidence?: ExitEvidence;
+  exitSnapshot?: ExitSnapshot;
+  holdExtension?: ExitSnapshot;
   copy?: CopyContext;
+}
+
+export interface ExitSnapshot {
+  at: string;
+  heldMinutes: number;
+  priceMultiple: number;
+  peakMultiple: number;
+  flow: FlowSignal | null;
+  sellStreak: number;
+  topHoldersSelling: number;
+  liquidityUsd: number;
+  reason: string | null;
 }
 
 export interface CopyContext {

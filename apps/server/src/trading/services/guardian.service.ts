@@ -8,6 +8,7 @@ import type { ExitSignals, PoolState, PositionContext } from '../interfaces/trad
 import { PositionRepository } from '../repositories/position.repository';
 import { ExitEvidenceBuilder } from '../utils/exit-evidence.builder';
 import { ExitRulesEvaluator } from '../utils/exit-rules.evaluator';
+import { ExitSnapshotBuilder } from '../utils/exit-snapshot.builder';
 import { FlowSignalBuilder } from '../utils/flow-signal.builder';
 import { EngineStatusService } from './engine-status.service';
 import { PositionService } from './position.service';
@@ -91,6 +92,7 @@ export class GuardianService implements OnApplicationBootstrap, OnModuleDestroy 
     const trades = loadTrades ? await this.loadTrades(position.pairAddress) : [];
     const signals = this.computeSignals(context, trades, position.openedAt.getTime(), pair.liquidityUsd, loadTrades);
 
+    const nowMs = Date.now();
     const action = ExitRulesEvaluator.evaluate(
       {
         entryPriceSol: position.entryPriceSol,
@@ -102,12 +104,29 @@ export class GuardianService implements OnApplicationBootstrap, OnModuleDestroy 
       },
       signals,
       pair.priceSol,
-      Date.now(),
+      nowMs,
     );
-    if (!action) return;
+
+    const snapshot = ExitSnapshotBuilder.build({
+      openedAtMs: position.openedAt.getTime(),
+      entryPriceSol: position.entryPriceSol,
+      peakPriceSol: peak,
+      priceSol: pair.priceSol,
+      nowMs,
+      signals,
+      reason: action?.reason ?? null,
+    });
+
+    if (!action) {
+      if (this.pastHoldLimit(position)) await this.positions.update(position.id, { context: { ...context, holdExtension: snapshot } });
+      return;
+    }
+
+    const withSnapshot: PositionContext = { ...context, exitSnapshot: snapshot };
+    await this.positions.update(position.id, { context: withSnapshot });
 
     if (action.full && RUG_EXIT_PATTERN.test(action.reason)) {
-      await this.recordExitEvidence(position, context, trades, pair.pairAddress);
+      await this.recordExitEvidence(position, withSnapshot, trades, pair.pairAddress);
     }
 
     await this.positionService.sell(position.id, action.sellFraction, action.reason, pool, {

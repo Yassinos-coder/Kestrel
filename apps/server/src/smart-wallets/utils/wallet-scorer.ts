@@ -2,10 +2,10 @@ import type { WalletAssessment, WalletStats, WalletTier } from '../interfaces/wa
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_SWAPS_PER_DAY = 150;
-const MIN_SPAN_DAYS = 2;
-const MIN_CLOSED_TOKENS = 8;
+const MIN_SPAN_DAYS = 1;
+const MIN_CLOSED_TOKENS = 5;
 const MIN_WIN_RATE = 50;
-const MIN_PROFIT_SOL = 3;
+const MIN_PROFIT_SOL = 1;
 const MAX_BEST_TOKEN_SHARE = 60;
 const MIN_MEDIAN_HOLD_MINUTES = 0.5;
 const MIN_SOL_SIDED_PCT = 50;

@@ -2,6 +2,9 @@ import type { RuleChange } from '@kestrel/shared';
 import type { BuyAlert, DailyLossAlert, LowFundsAlert, ReviewAlert, SellAlert } from '../interfaces/alerts.interface';
 
 const DEXSCREENER_URL = 'https://dexscreener.com/solana';
+const SMALL_PRICE_LIMIT = 0.01;
+const SIGNIFICANT_DIGITS = 4;
+const MAX_DECIMALS = 20;
 const PAUSE_NOTE = '⏸️ <i>New entries were paused during the review and have resumed. Open positions stayed protected.</i>';
 
 export class NotificationMessageMapper {
@@ -9,7 +12,7 @@ export class NotificationMessageMapper {
     const lines = [
       `🟢 <b>BUY ${NotificationMessageMapper.escape(alert.symbol)}</b> · ${alert.mode}`,
       `Size: ${NotificationMessageMapper.sol(alert.solAmount, alert.solUsd)}`,
-      `Entry: ${alert.priceSol.toExponential(3)} SOL`,
+      `Entry: ${NotificationMessageMapper.price(alert.priceSol)} SOL`,
       `Confidence: ${alert.confidence ?? 'rules-only'}`,
       `Plan: ${alert.plan.style}, hold ≤ ${alert.plan.maxHoldMinutes}m, first target ${alert.plan.takeProfitMultiple}x, stop -${alert.plan.stopLossPct}%`,
       alert.roundTripCostPct === null || alert.breakEvenMovePct === null
@@ -19,6 +22,14 @@ export class NotificationMessageMapper {
       `Rules v${alert.ruleVersion} · <a href="${DEXSCREENER_URL}/${alert.pairAddress}">chart</a>`,
     ];
     return lines.filter(Boolean).join('\n');
+  }
+
+  static price(value: number): string {
+    if (value <= 0) return '0';
+    if (value >= SMALL_PRICE_LIMIT) return value.toFixed(4);
+    const leadingZeros = Math.max(0, -Math.floor(Math.log10(value)) - 1);
+    const decimals = Math.min(leadingZeros + SIGNIFICANT_DIGITS, MAX_DECIMALS);
+    return value.toFixed(decimals).replace(/0+$/, '');
   }
 
   static sell(alert: SellAlert): string {

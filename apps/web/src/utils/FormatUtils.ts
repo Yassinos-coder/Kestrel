@@ -32,7 +32,8 @@ export class FormatUtils {
   static price(value: number): string {
     if (value === 0) return '0';
     if (value >= 0.01) return value.toFixed(4);
-    return value.toExponential(2);
+    const leadingZeros = Math.max(0, -Math.floor(Math.log10(value)) - 1);
+    return value.toFixed(Math.min(leadingZeros + 4, 20)).replace(/0+$/, '');
   }
 
   static timeAgo(iso: string | null): string {

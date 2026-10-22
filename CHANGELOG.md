@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-10-22
+
+### Added
+- Every exit now records what the guardian saw at that moment (time held, price versus entry and peak, buyers versus sellers, liquidity), and positions held past their limit record the same so the reason for each decision can be checked
+- Tokens where a single holder owns 10% or more now need AI confidence of 75 or higher to be bought, since one sale can crash the pool
+
+### Changed
+- Telegram buy alerts show the full entry price instead of scientific notation, and the dashboard does the same
+- Wallet discovery looks at more winning tokens and checks wallets that appear in several of them first
+- Smart wallet filters are slightly more forgiving: at least 5 completed trades, 1 SOL profit and 1 day of history
+- Railway configuration now lives in the repository with the final US East regions and resource limits on every service
+
 ## [0.7.1] - 2026-10-22
 
 ### Fixed
