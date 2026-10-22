@@ -28,6 +28,11 @@ export class SettingsRepository {
     return row?.telegramChatId ?? null;
   }
 
+  async findUserIdByTelegramChatId(chatId: string): Promise<string | null> {
+    const row = await this.prisma.botSettings.findFirst({ where: { telegramChatId: chatId }, select: { userId: true } });
+    return row?.userId ?? null;
+  }
+
   async setTelegramLinkCode(userId: string, code: string): Promise<void> {
     await this.prisma.botSettings.update({ where: { userId }, data: { telegramLinkCode: code } });
   }

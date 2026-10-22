@@ -59,6 +59,7 @@ import { TradingGateService } from './services/trading-gate.service';
     TokenScanRepository,
     PositionService,
     TradingGateService,
+    SuggestionService,
   ],
 })
 export class TradingModule {}

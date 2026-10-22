@@ -30,6 +30,10 @@ export class SmartWalletRepository {
     return this.prisma.smartWallet.findUnique({ where: { id } });
   }
 
+  findByAddress(address: string): Promise<SmartWallet | null> {
+    return this.prisma.smartWallet.findUnique({ where: { address } });
+  }
+
   listOldestUpdated(take: number): Promise<SmartWallet[]> {
     return this.prisma.smartWallet.findMany({ where: { status: ACTIVE }, orderBy: { updatedAt: 'asc' }, take });
   }

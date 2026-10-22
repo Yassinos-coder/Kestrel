@@ -8,6 +8,7 @@ import { ReportsModule } from './reports/reports.module';
 import { SelfHealingModule } from './self-healing/self-healing.module';
 import { SettingsModule } from './settings/settings.module';
 import { SmartWalletsModule } from './smart-wallets/smart-wallets.module';
+import { TelegramCommandsModule } from './telegram-commands/telegram-commands.module';
 import { TradingModule } from './trading/trading.module';
 import { UsersModule } from './users/users.module';
 import { WalletModule } from './wallet/wallet.module';
@@ -25,6 +26,7 @@ import { WalletModule } from './wallet/wallet.module';
     SelfHealingModule,
     ReportsModule,
     SmartWalletsModule,
+    TelegramCommandsModule,
   ],
 })
 export class AppModule {}

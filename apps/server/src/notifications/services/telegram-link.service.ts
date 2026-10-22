@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import type { TelegramStatus } from '@kestrel/shared';
 import { SettingsRepository } from '../../settings/repositories/settings.repository';
-import type { TelegramUpdate } from '../interfaces/telegram.interface';
+import type { TelegramCommandHandler, TelegramUpdate } from '../interfaces/telegram.interface';
 import { TelegramService } from './telegram.service';
 
 const POLL_INTERVAL_MS = 4_000;
@@ -19,6 +19,7 @@ export class TelegramLinkService implements OnApplicationBootstrap, OnModuleDest
   private timer: NodeJS.Timeout | null = null;
   private polling = false;
   private nextOffset = 0;
+  private commandHandler: TelegramCommandHandler | null = null;
 
   constructor(
     private readonly telegram: TelegramService,
@@ -32,6 +33,10 @@ export class TelegramLinkService implements OnApplicationBootstrap, OnModuleDest
 
   onModuleDestroy(): void {
     if (this.timer) clearInterval(this.timer);
+  }
+
+  registerCommandHandler(handler: TelegramCommandHandler): void {
+    this.commandHandler = handler;
   }
 
   async getStatus(userId: string): Promise<TelegramStatus> {
@@ -82,7 +87,7 @@ export class TelegramLinkService implements OnApplicationBootstrap, OnModuleDest
     const chatId = String(message.chat.id);
 
     if (!message.text.startsWith(START_PREFIX)) {
-      await this.telegram.send(HELP_MESSAGE, chatId);
+      await this.handleCommand(chatId, message.text);
       return;
     }
 
@@ -94,5 +99,14 @@ export class TelegramLinkService implements OnApplicationBootstrap, OnModuleDest
 
     await this.settings.completeTelegramLink(userId, chatId);
     await this.telegram.send(CONNECTED_MESSAGE, chatId);
+  }
+
+  private async handleCommand(chatId: string, text: string): Promise<void> {
+    const userId = await this.settings.findUserIdByTelegramChatId(chatId);
+    if (!userId || !this.commandHandler) {
+      await this.telegram.send(HELP_MESSAGE, chatId);
+      return;
+    }
+    await this.commandHandler.handle(userId, chatId, text);
   }
 }

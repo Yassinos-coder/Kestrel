@@ -1,10 +1,11 @@
-import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ServiceUnavailableException, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DexScreenerClient } from '../../market-data/clients/dexscreener.client';
 import { GeckoTerminalClient } from '../../market-data/clients/geckoterminal.client';
 import { HeliusClient } from '../../market-data/clients/helius.client';
+import type { SmartWallet } from '../../generated/prisma/client';
 import type { TrendingWinner } from '../../market-data/interfaces/market-data.interface';
-import type { WalletSwap } from '../interfaces/wallet.interface';
+import type { WalletAssessment, WalletSwap } from '../interfaces/wallet.interface';
 import { WalletSwapParserMapper } from '../mappers/wallet-swap-parser.mapper';
 import { SmartWalletRepository } from '../repositories/smart-wallet.repository';
 import { WalletPerformanceAnalyzer } from '../utils/wallet-performance.analyzer';
@@ -99,6 +100,16 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
     return { winners: winners.length, checked: queue.length, qualified };
   }
 
+  async addManually(address: string): Promise<SmartWallet> {
+    if (!this.helius.isAvailable()) throw new ServiceUnavailableException('Wallet analysis needs the Helius API key');
+    const existing = await this.wallets.findByAddress(address);
+    if (existing) return existing;
+
+    const assessment = await this.assess(address);
+    if (!assessment) throw new NotFoundException('Not enough swap history on this wallet to copy it');
+    return this.wallets.upsert(address, assessment);
+  }
+
   private async walletsFromToken(winner: TrendingWinner): Promise<string[]> {
     try {
       const [holders, vault] = await Promise.all([this.helius.getTopHolders(winner.mint), this.helius.findPoolVault(winner.pairAddress, winner.mint)]);
@@ -118,27 +129,8 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
   private async evaluate(address: string): Promise<boolean> {
     this.checked.set(address, Date.now());
     try {
-      const transactions = await this.helius.getWalletSwapTransactions(address, SWAP_PAGE);
-      if (!this.passesQuickCheck(transactions, address)) {
-        await this.wallets.markStale(address);
-        return false;
-      }
-
-      for (let page = 0; page < EXTRA_PAGES && transactions.length >= SWAP_PAGE * (page + 1); page++) {
-        const more = await this.helius.getWalletSwapTransactions(address, SWAP_PAGE, transactions[transactions.length - 1]?.signature);
-        if (!more.length) break;
-        transactions.push(...more);
-      }
-
-      const swaps = transactions.flatMap((transaction) => {
-        const swap = WalletSwapParserMapper.parse(transaction, address);
-        return swap ? [swap] : [];
-      });
-      const created = await this.pairCreationTimes(swaps);
-      const stats = WalletPerformanceAnalyzer.analyze({ swaps, totalSwapTransactions: transactions.length, pairCreatedAtMs: created });
-      const assessment = WalletScorer.assess(stats, Date.now());
-
-      if (!assessment.tier) {
+      const assessment = await this.assess(address);
+      if (!assessment?.tier) {
         await this.wallets.markStale(address);
         return false;
       }
@@ -148,6 +140,25 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
       this.logger.debug(`Could not assess ${address.slice(0, 6)}: ${error instanceof Error ? error.message : 'unknown error'}`);
       return false;
     }
+  }
+
+  private async assess(address: string): Promise<WalletAssessment | null> {
+    const transactions = await this.helius.getWalletSwapTransactions(address, SWAP_PAGE);
+    if (!this.passesQuickCheck(transactions, address)) return null;
+
+    for (let page = 0; page < EXTRA_PAGES && transactions.length >= SWAP_PAGE * (page + 1); page++) {
+      const more = await this.helius.getWalletSwapTransactions(address, SWAP_PAGE, transactions[transactions.length - 1]?.signature);
+      if (!more.length) break;
+      transactions.push(...more);
+    }
+
+    const swaps = transactions.flatMap((transaction) => {
+      const swap = WalletSwapParserMapper.parse(transaction, address);
+      return swap ? [swap] : [];
+    });
+    const created = await this.pairCreationTimes(swaps);
+    const stats = WalletPerformanceAnalyzer.analyze({ swaps, totalSwapTransactions: transactions.length, pairCreatedAtMs: created });
+    return WalletScorer.assess(stats, Date.now());
   }
 
   private passesQuickCheck(transactions: Array<{ timestamp: number }>, address: string): boolean {

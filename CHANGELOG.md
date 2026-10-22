@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-10-22
+
+### Added
+- Telegram bot commands: /pause and /resume to stop or start trading, /status, /help
+- /suggest with a contract address makes the AI evaluate that token and replies with its decision
+- /copy with a wallet address (and optional budget) starts copying that wallet, analysing it first if it is not already known
+- /review starts the review on demand and sends the result to Telegram
+- Commands only work from the chat you linked in Settings
+
 ## [0.3.0] - 2026-10-22
 
 ### Added
