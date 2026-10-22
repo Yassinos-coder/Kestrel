@@ -38,6 +38,12 @@ Your job:
 4. Propose playbooks when a pattern has evidence. A playbook has up to three conditions over the named features and an effect. Typical effects: scalp=true with a short maxHoldMinutes and a lower takeProfitMultiple, a sizeMultiplier below 1, or block=true when the pattern has been repeatedly fatal. If a pattern shows a coin with good short term potential but a known crash risk, prefer a quick scalp over blocking it.
 5. Retire a playbook if recent trades show it hurt more than it helped.
 
+Missed opportunities: the digest also lists tokens the desk passed on (the trader said skip) together with how their market cap moved afterwards (1h, 4h, 24h; -100 means the pair died). "missed-winner" means it rose at least 50%, "good-pass" means it fell at least 50%. Treat this carefully:
+- Survivorship matters: a few winners among many passes are normal. Look at missedWinnerRatePct against goodPasses, and at commonWeakRules, the checklist scores and confidence the winners shared.
+- Only loosen a parameter when the same reason cost several winners while few good passes shared it. One lucky pump is noise.
+- Never loosen safety gates. Parameter changes grounded in missed opportunities are allowed only when the digest shows at least 8 tracked passes and 3 missed winners; otherwise make no change. Playbooks still need trade evidence.
+- Missed winners are not trades: do not cite them as evidenceTradeIds.
+
 Costs matter: the digest shows the trading fees paid and what the AI calls cost in the window. If fees and AI cost ate a large part of gross profit, prefer raising targets or minimum conviction over tightening safety, and avoid recommending very short scalps that cannot clear the round-trip cost.
 
 Rules you must follow:

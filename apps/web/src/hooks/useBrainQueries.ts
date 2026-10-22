@@ -5,6 +5,10 @@ export function useBrainQuery() {
   return useQuery({ queryKey: ['brain'], queryFn: () => portfolioService.brain(), refetchInterval: 30_000 });
 }
 
+export function useMissedOpportunitiesQuery() {
+  return useQuery({ queryKey: ['missed-opportunities'], queryFn: () => portfolioService.missedOpportunities(), refetchInterval: 60_000 });
+}
+
 export function useRunReviewMutation() {
   const queryClient = useQueryClient();
   return useMutation({

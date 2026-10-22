@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Playbook, RuleParams } from '@kestrel/shared';
+import type { MissedOpportunitiesView, Playbook, RuleParams } from '@kestrel/shared';
 import { ClaudeService } from '../../agents/services/claude.service';
 import { REVIEW_AGENT_PROMPT, WRAP_TOKEN_DATA } from '../../agents/constants/agent-prompts.constant';
 import { RULE_PARAM_BOUNDS } from '../../rules/constants/rule-param-bounds.constant';
@@ -11,6 +11,7 @@ export interface ReviewDigest {
   stats: DayStats;
   featureComparison: FeatureComparison[];
   rejections: RejectionStats;
+  missedOpportunities: MissedOpportunitiesView;
   costs: { tradingFeesSol: number; aiCostUsd: number; aiCalls: number };
   rules: { version: number; params: RuleParams; playbooks: Playbook[] };
   trades: Array<{

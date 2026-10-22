@@ -285,3 +285,31 @@ export interface CopyFollowView extends FollowInput {
   winRatePct: number;
   createdAt: string;
 }
+
+export type MissedVerdict = 'missed-winner' | 'good-pass' | 'flat' | 'pending';
+
+export interface MissedOpportunityItem {
+  decisionId: string;
+  mint: string;
+  symbol: string;
+  passedAt: string;
+  marketCapUsd: number;
+  confidence: number | null;
+  reasoning: string;
+  weakRules: string[];
+  change1hPct: number | null;
+  change4hPct: number | null;
+  change24hPct: number | null;
+  bestChangePct: number | null;
+  verdict: MissedVerdict;
+}
+
+export interface MissedOpportunitiesView {
+  windowHours: number;
+  tracked: number;
+  missedWinners: number;
+  goodPasses: number;
+  missedWinnerRatePct: number;
+  commonWeakRules: Array<{ rule: string; count: number }>;
+  items: MissedOpportunityItem[];
+}

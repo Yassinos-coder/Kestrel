@@ -1,4 +1,4 @@
-import type { BrainView, DashboardSummary, DecisionView, Paginated, PositionDetail, PositionView, ReviewRunView, SuggestionResult } from '@kestrel/shared';
+import type { BrainView, DashboardSummary, DecisionView, MissedOpportunitiesView, Paginated, PositionDetail, PositionView, ReviewRunView, SuggestionResult } from '@kestrel/shared';
 import { BaseApiClient } from '@/services/BaseApiClient';
 import { QueryString } from '@/utils/QueryString';
 
@@ -75,6 +75,10 @@ class PortfolioService extends BaseApiClient {
 
   brain(): Promise<BrainView> {
     return this.request('/brain');
+  }
+
+  missedOpportunities(): Promise<MissedOpportunitiesView> {
+    return this.request('/missed-opportunities');
   }
 
   runReview(): Promise<ReviewRunView> {

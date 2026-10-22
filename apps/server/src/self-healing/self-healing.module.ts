@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AgentsModule } from '../agents/agents.module';
+import { OutcomesModule } from '../outcomes/outcomes.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { RulesModule } from '../rules/rules.module';
 import { TradingModule } from '../trading/trading.module';
@@ -11,7 +12,7 @@ import { SelfHealingScheduler } from './services/self-healing.scheduler';
 import { SelfHealingService } from './services/self-healing.service';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), AgentsModule, NotificationsModule, RulesModule, TradingModule],
+  imports: [ScheduleModule.forRoot(), AgentsModule, NotificationsModule, OutcomesModule, RulesModule, TradingModule],
   controllers: [BrainController],
   providers: [ReviewRunRepository, ReviewAgentService, SelfHealingService, SelfHealingScheduler],
   exports: [ReviewRunRepository, SelfHealingService],

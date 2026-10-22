@@ -53,6 +53,7 @@ model User {
   lessons    TradeLesson[]
   sweeps     ProfitSweep[]
   aiUsage    AiUsage[]
+  decisionOutcomes DecisionOutcome[]
   ruleSets   RuleSetVersion[]
   reviews    ReviewRun[]
   follows    CopyFollow[]
@@ -187,6 +188,7 @@ model Decision {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   scan      TokenScan  @relation(fields: [scanId], references: [id], onDelete: Cascade)
   positions Position[]
+  outcome   DecisionOutcome?
 
   @@index([userId, createdAt])
   @@index([userId, mint])
@@ -339,4 +341,23 @@ model AiUsage {
 
   @@index([userId, createdAt])
   @@map("ai_usage")
+}
+
+model DecisionOutcome {
+  id               String   @id @default(uuid()) @db.Uuid
+  decisionId       String   @unique @map("decision_id") @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  baseMarketCapUsd Float    @map("base_market_cap_usd")
+  change1hPct      Float?   @map("change_1h_pct")
+  change4hPct      Float?   @map("change_4h_pct")
+  change24hPct     Float?   @map("change_24h_pct")
+  peakChangePct    Float?   @map("peak_change_pct")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  decision Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("decision_outcomes")
 }

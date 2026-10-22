@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-10-22
+
+### Added
+- Missed opportunity tracking: every token the AI passes on is checked again after 1, 4 and 24 hours to see how its market cap moved
+- The nightly review now sees missed winners, good passes and the weak checks the winners shared, so it can tell whether the bot is too strict
+- Brain page card showing passed tokens with their later performance and the reason they were passed
+
+### Changed
+- The nightly review still runs on days with no closed trades when enough passed tokens were tracked
+- Parameter changes can be justified by missed opportunities, but only with at least 8 tracked passes and 3 missed winners, and always inside the existing limits
+
 ## [0.5.0] - 2026-10-22
 
 ### Added

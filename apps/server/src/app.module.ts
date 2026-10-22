@@ -4,6 +4,7 @@ import { AuthModule } from './auth/auth.module';
 import configuration from './config/configuration';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
+import { OutcomesModule } from './outcomes/outcomes.module';
 import { ReportsModule } from './reports/reports.module';
 import { SelfHealingModule } from './self-healing/self-healing.module';
 import { SettingsModule } from './settings/settings.module';
@@ -26,6 +27,7 @@ import { WalletModule } from './wallet/wallet.module';
     SelfHealingModule,
     ReportsModule,
     SmartWalletsModule,
+    OutcomesModule,
     TelegramCommandsModule,
   ],
 })

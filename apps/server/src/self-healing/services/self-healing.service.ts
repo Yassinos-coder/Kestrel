@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { PlaybookEffect, RuleChange } from '@kestrel/shared';
+import type { MissedOpportunitiesView, PlaybookEffect, RuleChange } from '@kestrel/shared';
 import type { Position, ReviewRun } from '../../generated/prisma/client';
+import { MissedOpportunityService } from '../../outcomes/services/missed-opportunity.service';
 import { NotificationService } from '../../notifications/services/notification.service';
 import { RuleSetService } from '../../rules/services/rule-set.service';
 import { PlaybookValidator } from '../../rules/validators/playbook.validator';
@@ -28,6 +29,9 @@ const DIGEST_SIZE = 12;
 const LESSONS_PER_TRADE = 2;
 const LESSON_TRADES = 6;
 const MIN_TRADES_FOR_PARAM_CHANGES = 3;
+const MIN_MISSED_TRACKED = 5;
+const MIN_MISSED_TRACKED_FOR_PARAM_CHANGES = 8;
+const MIN_MISSED_WINNERS_FOR_PARAM_CHANGES = 3;
 
 @Injectable()
 export class SelfHealingService {
@@ -45,6 +49,7 @@ export class SelfHealingService {
     private readonly configService: ConfigService,
     private readonly trades: TradeRepository,
     private readonly aiUsage: AiUsageRepository,
+    private readonly missedOpportunities: MissedOpportunityService,
   ) {}
 
   async runReview(userId: string): Promise<ReviewRun> {
@@ -88,10 +93,11 @@ export class SelfHealingService {
     windowLabel: string,
     versionBefore: number,
   ): Promise<ReviewRun> {
-    if (!summaries.length) {
+    const missed = await this.missedOpportunities.getDigest(userId);
+    if (!summaries.length && missed.tracked < MIN_MISSED_TRACKED) {
       const result = this.emptyResult('skipped', null);
       await this.notifications.notifyReview(userId, 
-        this.alert(windowLabel, 0, 0, null, 'No trades were closed today, so there was nothing to learn from.', [], 0, versionBefore, null),
+        this.alert(windowLabel, 0, 0, null, 'No trades were closed today and too few passed tokens were tracked, so there was nothing to learn from.', [], 0, versionBefore, null),
       );
       return this.reviews.finish(run.id, result);
     }
@@ -105,7 +111,7 @@ export class SelfHealingService {
 
     const scored = TradeSignificanceScorer.select(summaries, DIGEST_SIZE);
     const rules = await this.ruleSets.getActive(userId);
-    const digest = await this.buildDigest(userId, windowLabel, summaries, scored, rules, windowStart);
+    const digest = await this.buildDigest(userId, windowLabel, summaries, scored, rules, windowStart, missed);
     const output = await this.agent.review(digest, userId);
 
     if (!output) {
@@ -115,7 +121,7 @@ export class SelfHealingService {
       return this.reviews.finish(run.id, this.emptyResult('failed', 'review model returned no usable output'));
     }
 
-    return this.applyOutput(userId, run, output, summaries.length, scored.map((item) => item.trade.id), rules, windowLabel, versionBefore);
+    return this.applyOutput(userId, run, output, summaries.length, scored.map((item) => item.trade.id), rules, windowLabel, versionBefore, missed);
   }
 
   private async applyOutput(
@@ -127,9 +133,12 @@ export class SelfHealingService {
     rules: Awaited<ReturnType<RuleSetService['getActive']>>,
     windowLabel: string,
     versionBefore: number,
+    missed: MissedOpportunitiesView,
   ): Promise<ReviewRun> {
     const evidenceIds = new Set(reviewedIds);
-    const allowParamChanges = reviewedIds.length >= MIN_TRADES_FOR_PARAM_CHANGES;
+    const allowParamChanges =
+      reviewedIds.length >= MIN_TRADES_FOR_PARAM_CHANGES ||
+      (missed.tracked >= MIN_MISSED_TRACKED_FOR_PARAM_CHANGES && missed.missedWinners >= MIN_MISSED_WINNERS_FOR_PARAM_CHANGES);
 
     const paramOutcome = RuleChangeValidator.apply(rules.params, allowParamChanges ? output.paramChanges : []);
     const tooFew: RuleChange[] = allowParamChanges
@@ -179,6 +188,7 @@ export class SelfHealingService {
     scored: ReturnType<typeof TradeSignificanceScorer.select>,
     rules: Awaited<ReturnType<RuleSetService['getActive']>>,
     windowStart: Date,
+    missed: MissedOpportunitiesView,
   ): Promise<ReviewDigest> {
     const todaysDecisions = await this.decisions.listSince(userId, windowStart);
     const rejections = ReviewStatsBuilder.rejections(
@@ -218,6 +228,7 @@ export class SelfHealingService {
       stats: ReviewStatsBuilder.dayStats(summaries),
       featureComparison: ReviewStatsBuilder.compareFeatures(summaries),
       rejections,
+      missedOpportunities: missed,
       rules: { version: rules.version, params: rules.params, playbooks: rules.playbooks },
       trades,
     };

@@ -1,3 +1,4 @@
+import { MissedOpportunitiesCard } from '@/components/brain/MissedOpportunitiesCard';
 import { ReviewCard } from '@/components/brain/ReviewCard';
 import { PlaybookCard } from '@/components/brain/PlaybookCard';
 import { RuleParamsGrid } from '@/components/brain/RuleParamsGrid';
@@ -6,12 +7,13 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { ErrorNote } from '@/components/ui/ErrorNote';
 import { cn } from '@/lib/cn';
-import { useBrainQuery, useRunReviewMutation } from '@/hooks/useBrainQueries';
+import { useBrainQuery, useMissedOpportunitiesQuery, useRunReviewMutation } from '@/hooks/useBrainQueries';
 import { FormatUtils } from '@/utils/FormatUtils';
 
 export function BrainPage() {
   const { data, isPending, error } = useBrainQuery();
   const review = useRunReviewMutation();
+  const missed = useMissedOpportunitiesQuery();
 
   if (isPending) return <p className="text-muted-foreground">Loading the brain…</p>;
   if (error || !data) return <ErrorNote error={error ?? new Error('Brain unavailable')} />;
@@ -58,6 +60,8 @@ export function BrainPage() {
           <p className="py-4 text-sm text-muted-foreground">None yet. Playbooks appear after a nightly review finds a repeating pattern with evidence.</p>
         )}
       </Card>
+
+      <MissedOpportunitiesCard report={missed.data} error={missed.error} />
 
       <Card>
         <CardHeader title="Nightly reviews" description="What the AI concluded and changed after each day." />
