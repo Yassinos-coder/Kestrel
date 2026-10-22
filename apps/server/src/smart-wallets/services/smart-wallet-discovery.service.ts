@@ -100,12 +100,12 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
     return { winners: winners.length, checked: queue.length, qualified };
   }
 
-  async addManually(address: string): Promise<SmartWallet> {
+  async addManually(address: string, force = false): Promise<SmartWallet> {
     if (!this.helius.isAvailable()) throw new ServiceUnavailableException('Wallet analysis needs the Helius API key');
     const existing = await this.wallets.findByAddress(address);
     if (existing) return existing;
 
-    const assessment = await this.assess(address);
+    const assessment = await this.assess(address, force);
     if (!assessment) throw new NotFoundException('Not enough swap history on this wallet to copy it');
     return this.wallets.upsert(address, assessment);
   }
@@ -142,9 +142,9 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
     }
   }
 
-  private async assess(address: string): Promise<WalletAssessment | null> {
+  private async assess(address: string, skipQuickCheck = false): Promise<WalletAssessment | null> {
     const transactions = await this.helius.getWalletSwapTransactions(address, SWAP_PAGE);
-    if (!this.passesQuickCheck(transactions, address)) return null;
+    if (!skipQuickCheck && !this.passesQuickCheck(transactions, address)) return null;
 
     for (let page = 0; page < EXTRA_PAGES && transactions.length >= SWAP_PAGE * (page + 1); page++) {
       const more = await this.helius.getWalletSwapTransactions(address, SWAP_PAGE, transactions[transactions.length - 1]?.signature);

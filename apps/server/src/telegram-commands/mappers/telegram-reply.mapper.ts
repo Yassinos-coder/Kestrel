@@ -10,7 +10,7 @@ export class TelegramReplyMapper {
       '/pause - stop opening new trades',
       '/resume - start trading again',
       '/suggest &lt;contract&gt; - have the AI evaluate a token',
-      '/copy &lt;wallet&gt; [budget SOL] - copy a wallet',
+      '/copy &lt;wallet&gt; [budget SOL] [force] - copy a wallet, force skips the history check',
       '/review - run the review now',
     ].join('\n');
   }
@@ -44,12 +44,15 @@ export class TelegramReplyMapper {
       .join('\n');
   }
 
-  static copyStarted(follow: CopyFollowView): string {
+  static copyStarted(follow: CopyFollowView, forced: boolean): string {
     return [
       `📋 <b>Copying ${follow.walletAddress.slice(0, 4)}...${follow.walletAddress.slice(-4)}</b> (tier ${follow.tier}, score ${Math.round(follow.score)})`,
+      forced ? 'Added with force: this wallet may have too little history to be scored reliably.' : '',
       `Budget ${follow.budgetSol} SOL, ${follow.maxPerTradeSol} SOL per trade, stops at ${follow.maxLossSol} SOL loss.`,
       follow.mirrorSells ? 'Sells are mirrored.' : 'Sells are not mirrored.',
-    ].join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
   }
 
   static reviewStarted(): string {

@@ -14,6 +14,7 @@ import { TelegramReplyMapper } from '../mappers/telegram-reply.mapper';
 import { TelegramCommandValidator } from '../validators/telegram-command.validator';
 
 const ROUND = 100;
+const FORCE_KEYWORD = 'force';
 
 @Injectable()
 export class TelegramCommandService implements OnModuleInit, TelegramCommandHandler {
@@ -56,7 +57,7 @@ export class TelegramCommandService implements OnModuleInit, TelegramCommandHand
     if (name === 'resume') return this.setEnabled(userId, chatId, true);
     if (name === 'status') return this.status(userId, chatId);
     if (name === 'suggest') return this.suggest(userId, chatId, args[0]);
-    if (name === 'copy') return this.copy(userId, chatId, args[0], args[1]);
+    if (name === 'copy') return this.copy(userId, chatId, args);
     if (name === 'review') return this.review(userId, chatId);
     if (name === 'help') {
       await this.telegram.send(TelegramReplyMapper.help(), chatId);
@@ -83,18 +84,20 @@ export class TelegramCommandService implements OnModuleInit, TelegramCommandHand
     await this.telegram.send(TelegramReplyMapper.suggestion(await this.suggestions.suggest(userId, mint)), chatId);
   }
 
-  private async copy(userId: string, chatId: string, address: string | undefined, budgetText: string | undefined): Promise<void> {
+  private async copy(userId: string, chatId: string, args: string[]): Promise<void> {
+    const force = args.slice(1).some((arg) => arg.toLowerCase() === FORCE_KEYWORD);
+    const [address, budgetText] = [args[0], args.slice(1).find((arg) => arg.toLowerCase() !== FORCE_KEYWORD)];
     const budget = TelegramCommandValidator.parseBudget(budgetText, MIN_COPY_BUDGET_SOL, MAX_COPY_BUDGET_SOL);
     if (!TelegramCommandValidator.isSolanaAddress(address) || budget === null) {
       await this.telegram.send(
-        TelegramReplyMapper.usage(`/copy &lt;wallet address&gt; [budget ${MIN_COPY_BUDGET_SOL}-${MAX_COPY_BUDGET_SOL} SOL]`),
+        TelegramReplyMapper.usage(`/copy &lt;wallet address&gt; [budget ${MIN_COPY_BUDGET_SOL}-${MAX_COPY_BUDGET_SOL} SOL] [force]`),
         chatId,
       );
       return;
     }
 
     await this.telegram.send('🔎 Analysing wallet...', chatId);
-    const wallet = await this.discovery.addManually(address);
+    const wallet = await this.discovery.addManually(address, force);
     const budgetSol = budget ?? COPY_DEFAULTS.budgetSol;
     const follow = await this.follows.upsert(userId, wallet.id, {
       budgetSol,
@@ -105,7 +108,7 @@ export class TelegramCommandService implements OnModuleInit, TelegramCommandHand
       requireSecuredLp: COPY_DEFAULTS.requireSecuredLp,
     });
     const view = SmartWalletMapper.toFollowView(follow, await this.followStats.compute(follow.id));
-    await this.telegram.send(TelegramReplyMapper.copyStarted(view), chatId);
+    await this.telegram.send(TelegramReplyMapper.copyStarted(view, force), chatId);
   }
 
   private async review(userId: string, chatId: string): Promise<void> {
