@@ -1,6 +1,7 @@
 export const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 export const LAMPORTS_PER_SOL_NUMBER = 1_000_000_000;
 
+export const PUMPFUN_BASE_URL = 'https://frontend-api-v3.pump.fun';
 export const GECKO_BASE_URL = 'https://api.geckoterminal.com/api/v2/networks/solana';
 export const DEXSCREENER_BASE_URL = 'https://api.dexscreener.com/latest/dex';
 export const DEXSCREENER_TOKENS_URL = 'https://api.dexscreener.com/tokens/v1/solana';

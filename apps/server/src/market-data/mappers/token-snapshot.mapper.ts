@@ -1,6 +1,7 @@
 import type { TokenMarketSnapshot } from '../../checklist/interfaces/token-snapshot.interface';
-import type { DexPair, PoolCandidate, PoolTrade, RugReport } from '../interfaces/market-data.interface';
+import type { DexPair, PoolTrade, RugReport } from '../interfaces/market-data.interface';
 import type { SnapshotInputs } from '../interfaces/snapshot-inputs.interface';
+import { RecentTraders } from '../utils/recent-traders.util';
 
 const TOP_HOLDER_COUNT = 10;
 const MAX_RATIO = 10;
@@ -57,7 +58,7 @@ export class TokenSnapshotMapper {
         routeExists: exitQuote !== null,
         simulatedSellOk: exitQuote !== null && Number(exitQuote.outAmount) > 0,
       },
-      activity: TokenSnapshotMapper.mapActivity(pair, candidate, holders.totalHolders, previousHolders),
+      activity: TokenSnapshotMapper.mapActivity(pair, RecentTraders.count(candidate, trades, nowMs), holders.totalHolders, previousHolders),
       momentum: TokenSnapshotMapper.mapMomentum(pair),
     };
   }
@@ -97,11 +98,10 @@ export class TokenSnapshotMapper {
 
   private static mapActivity(
     pair: DexPair,
-    candidate: PoolCandidate | null,
+    uniqueTraders: number,
     totalHolders: number,
     previousHolders: number | null,
   ): TokenMarketSnapshot['activity'] {
-    const uniqueTraders = (candidate?.buyers5m ?? 0) + (candidate?.sellers5m ?? 0);
     const transactions = pair.buys5m + pair.sells5m;
     const ratio = Math.min(MAX_RATIO, pair.buys5m / Math.max(pair.sells5m, 1));
 

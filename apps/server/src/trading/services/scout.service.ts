@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { RuleParams } from '@kestrel/shared';
 import { DexScreenerClient } from '../../market-data/clients/dexscreener.client';
 import { GeckoTerminalClient } from '../../market-data/clients/geckoterminal.client';
+import { PumpFunClient } from '../../market-data/clients/pumpfun.client';
 import type { DexPair, PoolCandidate } from '../../market-data/interfaces/market-data.interface';
 import { TokenSnapshotBuilderService } from '../../market-data/services/token-snapshot-builder.service';
 import { RuleSetService } from '../../rules/services/rule-set.service';
@@ -46,6 +47,7 @@ export class ScoutService implements OnApplicationBootstrap, OnModuleDestroy {
   constructor(
     private readonly gecko: GeckoTerminalClient,
     private readonly dexScreener: DexScreenerClient,
+    private readonly pumpFun: PumpFunClient,
     private readonly snapshots: TokenSnapshotBuilderService,
     private readonly scans: TokenScanRepository,
     private readonly pipeline: DecisionPipelineService,
@@ -127,6 +129,7 @@ export class ScoutService implements OnApplicationBootstrap, OnModuleDestroy {
     const feeds: Array<[WatchSource, Promise<PoolCandidate[]>]> = [
       ['new', this.gecko.getNewPools(1)],
       ['new', this.gecko.getNewPools(2)],
+      ['new', this.pumpFun.getRecentGraduates()],
       ['trending', this.gecko.getTrendingPools('1h')],
       ['trending', this.gecko.getTrendingPools('24h')],
     ];

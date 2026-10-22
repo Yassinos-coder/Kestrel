@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException, ServiceUnavailableException, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { WalletDiscoveryResult } from '@kestrel/shared';
 import { DexScreenerClient } from '../../market-data/clients/dexscreener.client';
 import { GeckoTerminalClient } from '../../market-data/clients/geckoterminal.client';
 import { HeliusClient } from '../../market-data/clients/helius.client';
@@ -31,12 +32,6 @@ const VAULT_SIGNATURES = 400;
 const TOP_BUYERS = 15;
 const MAX_MINTS_LOOKUP = 60;
 
-export interface DiscoveryResult {
-  winners: number;
-  checked: number;
-  qualified: number;
-}
-
 @Injectable()
 export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(SmartWalletDiscoveryService.name);
@@ -65,20 +60,21 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
     if (this.timer) clearInterval(this.timer);
   }
 
-  async runOnce(): Promise<DiscoveryResult> {
-    if (this.running || !this.helius.isAvailable()) return { winners: 0, checked: 0, qualified: 0 };
+  async runOnce(): Promise<WalletDiscoveryResult> {
+    if (!this.helius.isAvailable()) return { winners: 0, checked: 0, qualified: 0, status: 'unavailable' };
+    if (this.running) return { winners: 0, checked: 0, qualified: 0, status: 'busy' };
     this.running = true;
     try {
       return await this.discover();
     } catch (error) {
       this.logger.warn(`Wallet discovery failed: ${error instanceof Error ? error.message : 'unknown error'}`);
-      return { winners: 0, checked: 0, qualified: 0 };
+      return { winners: 0, checked: 0, qualified: 0, status: 'ok' };
     } finally {
       this.running = false;
     }
   }
 
-  private async discover(): Promise<DiscoveryResult> {
+  private async discover(): Promise<WalletDiscoveryResult> {
     const winners = (await this.gecko.getTrendingWinners())
       .filter(
         (winner) => winner.volume24hUsd >= MIN_WINNER_VOLUME_USD && winner.volume24hUsd <= MAX_WINNER_VOLUME_USD && winner.change24hPct >= MIN_WINNER_CHANGE_PCT,
@@ -97,7 +93,7 @@ export class SmartWalletDiscoveryService implements OnApplicationBootstrap, OnMo
     const outcomes = await this.mapLimited(queue, (address) => this.evaluate(address));
     const qualified = outcomes.filter(Boolean).length;
     this.logger.log(`Wallet discovery: ${winners.length} winning tokens, ${queue.length} wallets checked, ${qualified} qualified`);
-    return { winners: winners.length, checked: queue.length, qualified };
+    return { winners: winners.length, checked: queue.length, qualified, status: 'ok' };
   }
 
   async addManually(address: string, force = false): Promise<SmartWallet> {

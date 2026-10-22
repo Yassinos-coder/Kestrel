@@ -243,6 +243,13 @@ export interface WalletStatsView {
   lastActiveMs: number;
 }
 
+export interface WalletDiscoveryResult {
+  winners: number;
+  checked: number;
+  qualified: number;
+  status: 'ok' | 'busy' | 'unavailable';
+}
+
 export interface SmartWalletView {
   id: string;
   address: string;

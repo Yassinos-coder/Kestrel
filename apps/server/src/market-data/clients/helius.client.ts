@@ -10,6 +10,8 @@ const SIGNATURE_PAGE = 1_000;
 const PARSE_BATCH = 100;
 const HOUR_MS = 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 20_000;
+const ENHANCED_INTERVAL_MS = 250;
+const ENHANCED_RETRIES = 3;
 
 interface SignatureEntry {
   signature: string;
@@ -34,6 +36,7 @@ interface ParsedAccount {
 export class HeliusClient {
   private readonly apiKey: string | undefined;
   private readonly rpcUrl: string;
+  private nextEnhancedSlotMs = 0;
 
   constructor(configService: ConfigService) {
     this.apiKey = configService.get<string>('solana.heliusApiKey') || undefined;
@@ -134,13 +137,22 @@ export class HeliusClient {
     });
   }
 
-  private enhanced<T>(path: string, query: Record<string, string>, body?: object): Promise<T> {
+  private async enhanced<T>(path: string, query: Record<string, string>, body?: object): Promise<T> {
+    await this.waitForEnhancedSlot();
     const search = new URLSearchParams({ 'api-key': this.apiKey ?? '', ...query });
     return HttpFetcher.json<T>(`${ENHANCED_BASE_URL}${path}?${search.toString()}`, {
       method: body ? 'POST' : 'GET',
       body,
       timeoutMs: REQUEST_TIMEOUT_MS,
-      retries: 1,
+      retries: ENHANCED_RETRIES,
     });
+  }
+
+  private waitForEnhancedSlot(): Promise<void> {
+    const now = Date.now();
+    const slot = Math.max(now, this.nextEnhancedSlotMs);
+    this.nextEnhancedSlotMs = slot + ENHANCED_INTERVAL_MS;
+    if (slot === now) return Promise.resolve();
+    return new Promise((resolve) => setTimeout(resolve, slot - now));
   }
 }

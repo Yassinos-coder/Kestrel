@@ -6,6 +6,7 @@ import { FollowsList } from '@/components/smart-wallets/FollowsList';
 import { WalletCard } from '@/components/smart-wallets/WalletCard';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
+import { DiscoveryNote } from '@/components/smart-wallets/DiscoveryNote';
 import { ErrorNote } from '@/components/ui/ErrorNote';
 import { FilterField, FilterInput, FilterSelect } from '@/components/ui/FilterField';
 import { Pagination } from '@/components/ui/Pagination';
@@ -48,6 +49,7 @@ export function SmartWalletsPage() {
         </Button>
       </div>
       <ErrorNote error={discover.error ?? update.error ?? stop.error} />
+      <DiscoveryNote result={discover.data} />
 
       <Card>
         <CardHeader title="Your copy setups" description="Each one has its own budget and loss limit. Copying pauses itself when the limit is hit." />

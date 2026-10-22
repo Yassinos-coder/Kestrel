@@ -1,4 +1,4 @@
-import type { CopyFollowView, FollowInput, Paginated, SmartWalletView } from '@kestrel/shared';
+import type { CopyFollowView, FollowInput, Paginated, SmartWalletView, WalletDiscoveryResult } from '@kestrel/shared';
 import { BaseApiClient } from '@/services/BaseApiClient';
 import { QueryString } from '@/utils/QueryString';
 
@@ -26,7 +26,7 @@ class SmartWalletService extends BaseApiClient {
     return this.request(`/smart-wallets${query}`);
   }
 
-  discover(): Promise<unknown> {
+  discover(): Promise<WalletDiscoveryResult> {
     return this.request('/smart-wallets/discover', { method: 'POST' });
   }
 

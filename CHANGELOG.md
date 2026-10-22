@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-10-22
+
+### Added
+- Newly graduated pump.fun tokens are now watched alongside GeckoTerminal pools, so fresh PumpSwap launches reach the safety checks sooner
+- The Find wallets now button reports how many wallets were checked and added, or why nothing happened
+
+### Changed
+- Momentum scoring is more tolerant of meme coin volatility: overextended now means over +1000% in an hour and selling pressure means under -25% in 5 minutes
+- Wallet history requests to Helius are paced and retried so rate limits no longer fail most wallet checks
+
+### Fixed
+- Unique traders in the last 5 minutes was shown as zero for suggested tokens and pump.fun graduates, and is now counted from recent trades
+
 ## [0.4.2] - 2026-10-22
 
 ### Added
