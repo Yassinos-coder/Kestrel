@@ -4,16 +4,12 @@ import { TelegramLinkService } from '../../notifications/services/telegram-link.
 import { TelegramService } from '../../notifications/services/telegram.service';
 import { SelfHealingService } from '../../self-healing/services/self-healing.service';
 import { SettingsService } from '../../settings/services/settings.service';
-import { SmartWalletMapper } from '../../smart-wallets/mappers/smart-wallet.mapper';
-import { CopyFollowRepository } from '../../smart-wallets/repositories/copy-follow.repository';
-import { CopyFollowStatsService } from '../../smart-wallets/services/copy-follow-stats.service';
-import { SmartWalletDiscoveryService } from '../../smart-wallets/services/smart-wallet-discovery.service';
+import { CopyStartService } from '../../smart-wallets/services/copy-start.service';
 import { SuggestionService } from '../../trading/services/suggestion.service';
-import { COPY_DEFAULTS, MAX_COPY_BUDGET_SOL, MIN_COPY_BUDGET_SOL } from '../constants/copy-defaults.constant';
+import { MAX_COPY_BUDGET_SOL, MIN_COPY_BUDGET_SOL } from '../../smart-wallets/constants/copy-defaults.constant';
 import { TelegramReplyMapper } from '../mappers/telegram-reply.mapper';
 import { TelegramCommandValidator } from '../validators/telegram-command.validator';
 
-const ROUND = 100;
 const FORCE_KEYWORD = 'force';
 
 @Injectable()
@@ -27,9 +23,7 @@ export class TelegramCommandService implements OnModuleInit, TelegramCommandHand
     private readonly settings: SettingsService,
     private readonly suggestions: SuggestionService,
     private readonly selfHealing: SelfHealingService,
-    private readonly discovery: SmartWalletDiscoveryService,
-    private readonly follows: CopyFollowRepository,
-    private readonly followStats: CopyFollowStatsService,
+    private readonly copyStart: CopyStartService,
   ) {}
 
   onModuleInit(): void {
@@ -97,17 +91,7 @@ export class TelegramCommandService implements OnModuleInit, TelegramCommandHand
     }
 
     await this.telegram.send('🔎 Analysing wallet...', chatId);
-    const wallet = await this.discovery.addManually(address, force);
-    const budgetSol = budget ?? COPY_DEFAULTS.budgetSol;
-    const follow = await this.follows.upsert(userId, wallet.id, {
-      budgetSol,
-      maxPerTradeSol: Math.round(budgetSol * COPY_DEFAULTS.perTradeShare * ROUND) / ROUND,
-      maxLossSol: Math.round(budgetSol * COPY_DEFAULTS.lossShare * ROUND) / ROUND,
-      minLiquidityUsd: COPY_DEFAULTS.minLiquidityUsd,
-      mirrorSells: COPY_DEFAULTS.mirrorSells,
-      requireSecuredLp: COPY_DEFAULTS.requireSecuredLp,
-    });
-    const view = SmartWalletMapper.toFollowView(follow, await this.followStats.compute(follow.id));
+    const view = await this.copyStart.startByAddress(userId, address, budget, force);
     await this.telegram.send(TelegramReplyMapper.copyStarted(view, force), chatId);
   }
 

@@ -1,9 +1,12 @@
+import { ApiKeysCard } from '@/components/settings/ApiKeysCard';
 import { TelegramCard } from '@/components/settings/TelegramCard';
 import { ErrorNote } from '@/components/ui/ErrorNote';
+import { useApiKeys } from '@/hooks/useApiKeys';
 import { useTelegram } from '@/hooks/useTelegram';
 
 export function SettingsPage() {
   const { status, connect, sendTest, sendWeekly, disconnect, waiting } = useTelegram();
+  const { keys, create, revoke } = useApiKeys();
 
   return (
     <div className="space-y-6">
@@ -29,6 +32,18 @@ export function SettingsPage() {
           onTest={() => sendTest.mutate()}
           onWeekly={() => sendWeekly.mutate()}
           onDisconnect={() => disconnect.mutate()}
+        />
+      )}
+
+      {keys.data && (
+        <ApiKeysCard
+          keys={keys.data}
+          created={create.data ?? null}
+          creating={create.isPending}
+          revoking={revoke.isPending}
+          error={keys.error ?? create.error ?? revoke.error}
+          onCreate={(name) => create.mutate(name)}
+          onRevoke={(id) => revoke.mutate(id)}
         />
       )}
     </div>

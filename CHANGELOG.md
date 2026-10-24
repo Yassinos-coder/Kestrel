@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-10-24
+
+### Added
+- API keys: create and revoke keys on the Settings page and use them as a bearer token to call the whole Kestrel API from scripts and automations (balance, settings, pause and resume, positions, decisions, suggestions, reviews, copy trading)
+- New endpoint to copy a wallet by address with an optional budget and force flag, the same as the Telegram /copy command
+- Keys are stored hashed, shown once, limited to 10 active per account and cannot be used to manage keys
+
 ## [0.10.0] - 2026-10-22
 
 ### Added

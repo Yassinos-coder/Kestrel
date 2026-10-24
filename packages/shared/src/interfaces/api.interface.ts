@@ -24,6 +24,18 @@ export interface TelegramStatus {
   linkUrl: string | null;
 }
 
+export interface ApiKeyView {
+  id: string;
+  name: string;
+  prefix: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+export interface CreatedApiKey extends ApiKeyView {
+  key: string;
+}
+
 export interface BotSettingsView {
   mode: TradingMode;
   enabled: boolean;

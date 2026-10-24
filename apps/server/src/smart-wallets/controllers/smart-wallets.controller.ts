@@ -3,11 +3,12 @@ import type { CopyFollowView, Paginated, SmartWalletView, WalletDiscoveryResult 
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import type { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
-import { FollowDto, SmartWalletQueryDto, UpdateFollowDto } from '../dto/smart-wallets.dto';
+import { CopyByAddressDto, FollowDto, SmartWalletQueryDto, UpdateFollowDto } from '../dto/smart-wallets.dto';
 import { SmartWalletMapper } from '../mappers/smart-wallet.mapper';
 import { CopyFollowRepository, type FollowData, type FollowWithWallet } from '../repositories/copy-follow.repository';
 import { SmartWalletRepository } from '../repositories/smart-wallet.repository';
 import { CopyFollowStatsService } from '../services/copy-follow-stats.service';
+import { CopyStartService } from '../services/copy-start.service';
 import { SmartWalletDiscoveryService } from '../services/smart-wallet-discovery.service';
 import { SmartWalletQueryUtil } from '../utils/smart-wallet-query.util';
 
@@ -19,6 +20,7 @@ export class SmartWalletsController {
     private readonly follows: CopyFollowRepository,
     private readonly stats: CopyFollowStatsService,
     private readonly discovery: SmartWalletDiscoveryService,
+    private readonly copyStart: CopyStartService,
   ) {}
 
   @Get('smart-wallets')
@@ -41,6 +43,11 @@ export class SmartWalletsController {
     this.assertConsistent(dto);
     if (!(await this.wallets.findById(id))) throw new NotFoundException('Wallet not found');
     return this.toView(await this.follows.upsert(user.userId, id, dto));
+  }
+
+  @Post('copy-follows/by-address')
+  copyByAddress(@CurrentUser() user: AuthenticatedUser, @Body() dto: CopyByAddressDto): Promise<CopyFollowView> {
+    return this.copyStart.startByAddress(user.userId, dto.address, dto.budgetSol, dto.force);
   }
 
   @Get('copy-follows')

@@ -1,5 +1,6 @@
+import { MAX_COPY_BUDGET_SOL, MIN_COPY_BUDGET_SOL } from '../constants/copy-defaults.constant';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 
 export const WALLET_SORTS = ['score', 'profit', 'winrate', 'recent', 'early'] as const;
 export type WalletSort = (typeof WALLET_SORTS)[number];
@@ -63,6 +64,22 @@ export class FollowDto {
 
   @IsBoolean()
   requireSecuredLp!: boolean;
+}
+
+export class CopyByAddressDto {
+  @IsString()
+  @Matches(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/, { message: 'address must be a Solana address' })
+  address!: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(MIN_COPY_BUDGET_SOL)
+  @Max(MAX_COPY_BUDGET_SOL)
+  budgetSol?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  force?: boolean;
 }
 
 export class UpdateFollowDto {
