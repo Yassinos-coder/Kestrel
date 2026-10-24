@@ -24,6 +24,7 @@ import { CopyGateValidator } from '../validators/copy-gate.validator';
 import { CopyFollowStatsService } from './copy-follow-stats.service';
 
 const POLL_BATCH = 20;
+const SIGNATURE_PEEK = 10;
 const NO_PLAYBOOK_EFFECT = { matched: [], block: false, scalp: false, sizeMultiplier: 1, maxHoldMinutes: null, takeProfitMultiple: null, stopLossPct: null };
 
 @Injectable()
@@ -31,6 +32,7 @@ export class CopyTradingService implements OnApplicationBootstrap, OnModuleDestr
   private readonly logger = new Logger(CopyTradingService.name);
   private timer: NodeJS.Timeout | null = null;
   private running = false;
+  private readonly heads = new Map<string, string>();
 
   constructor(
     private readonly follows: CopyFollowRepository,
@@ -68,8 +70,15 @@ export class CopyTradingService implements OnApplicationBootstrap, OnModuleDestr
       for (const follow of active) byWallet.set(follow.wallet.address, [...(byWallet.get(follow.wallet.address) ?? []), follow]);
 
       for (const [address, group] of byWallet) {
-        const transactions = await this.helius.getWalletSwapTransactions(address, POLL_BATCH).catch(() => []);
-        for (const follow of group) await this.process(follow, transactions);
+        try {
+          const latest = await this.helius.getNewSignatures(address, this.heads.get(address) ?? null, SIGNATURE_PEEK);
+          if (this.heads.has(address) && !latest.length) continue;
+          const transactions = await this.helius.getWalletSwapTransactions(address, POLL_BATCH);
+          for (const follow of group) await this.process(follow, transactions);
+          if (latest[0]) this.heads.set(address, latest[0]);
+        } catch (error) {
+          this.logger.warn(`Could not read swaps for ${this.short(address)}: ${error instanceof Error ? error.message : 'unknown error'}`);
+        }
       }
     } catch (error) {
       this.logger.error(`Copy tick failed: ${error instanceof Error ? error.message : 'unknown error'}`);

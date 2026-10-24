@@ -108,6 +108,11 @@ export class HeliusClient {
     });
   }
 
+  async getNewSignatures(wallet: string, until: string | null, limit: number): Promise<string[]> {
+    const response = await this.rpc<RpcResult<SignatureEntry[]>>('getSignaturesForAddress', [wallet, { limit, ...(until ? { until } : {}) }]);
+    return (response.result ?? []).map((entry) => entry.signature);
+  }
+
   async getWalletProfile(address: string, nowMs: number): Promise<WalletProfile> {
     const response = await this.rpc<RpcResult<SignatureEntry[]>>('getSignaturesForAddress', [address, { limit: SIGNATURE_PAGE }]);
     const signatures = response.result ?? [];
